@@ -22,5 +22,5 @@ MBC - вариант реализации паттерна MVC для брауз
 Licensed under the MIT license. 
 
 ## ©
-2013 "maetchkin" Bogdan Maetchkin (maetchkin@gmail.com) 
-2013 Yandex
+ - 2013 Bogdan Maetchkin (maetchkin@gmail.com)
+ - 2013 Yandex
