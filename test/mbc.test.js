@@ -183,7 +183,7 @@ test(
 asyncTest(
     "asynchronous loading",
     function() {
-        //stop();
+
         var promise = mvc .module("modulizer-async").load();
 
             promise.done(
@@ -197,20 +197,34 @@ asyncTest(
 );
 
 asyncTest(
-    "asynchronous loading with synchronous init",
+    "asynchronous loading with sync-init",
     function() {
-        //stop();
+
         var promise = mvc .module("modulizer-async-init-sync").load();
+            
+            stop();
+
+            setTimeout(
+                function(){ return start(); },
+                mvc.obj("mvc-config").prop( "module-timeout-ms" )
+            );
+
 
             promise.done(
                 function(){
                     equal( this.state, "loaded", "synchronously inited");
                     start();
                 }
+            )
+            .fail(
+                function(){
+                    ok( false, "modulizer-async-init-sync failed");
+                    start();
+                }
             );
     }
 );
-
+/*
 asyncTest(
     "asynchronous loading with asynchronous init",
     function() {
@@ -224,7 +238,7 @@ asyncTest(
                 }
             );
     }
-);
+);*/
 
 
 

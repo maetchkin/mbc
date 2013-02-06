@@ -1,9 +1,12 @@
-mvc.module(
+ mvc.module(
     "modulizer-async-init-async",
     {
         init: function(){
             setTimeout(
-                function(){ this.state = "loaded" }
+                function(){
+                    mvc.module("modulizer-async-init-async").prop("status","ready");
+                },
+                500
             );
             return false;
         }
