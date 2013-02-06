@@ -1,0 +1,108 @@
+{
+    "project": {
+        "name": "mbc",
+        "description": "Plugin for yet another MVC on client-side.",
+        "version": "0.1.0",
+        "url": "git://github.yandex-team.ru/bogdan/mbc.git"
+    },
+    "files": {
+        "dist/mbc.0.1.0.js": {
+            "name": "dist/mbc.0.1.0.js",
+            "modules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        }
+    },
+    "modules": {},
+    "classes": {},
+    "classitems": [
+        {
+            "file": "MBC JavaScript Library",
+            "line": 3,
+            "overview": "This is my cool jquery plugin for yet another mvc on the client. It's a JS-framework, DSL-constructor, client-side templating",
+            "copyright": "Bogdan Maetchkin 2013",
+            "author": "Bogdan Maetchkin",
+            "date": "2013-1-28",
+            "version": "0.1.0",
+            "license": "MIT",
+            "exports": "mvc",
+            "requires": [
+                "jQuery"
+            ],
+            "tutorial": "tutorial-link",
+            "class": ""
+        },
+        {
+            "file": "dist/mbc.0.1.0.js",
+            "line": 23,
+            "class": ""
+        },
+        {
+            "file": "dist/mbc.0.1.0.js",
+            "line": 867,
+            "description": "Get module.prop()",
+            "itemtype": "method",
+            "name": "module.prop accessor",
+            "params": [
+                {
+                    "name": "id",
+                    "description": "",
+                    "type": "String"
+                },
+                {
+                    "name": "value",
+                    "description": "",
+                    "type": "String|Number|Boolean"
+                }
+            ],
+            "return": {
+                "description": "mvcPropType",
+                "type": "MvcProp"
+            },
+            "class": ""
+        }
+    ],
+    "warnings": [
+        {
+            "message": "unknown tag: overview",
+            "line": "  MBC JavaScript Library:3"
+        },
+        {
+            "message": "unknown tag: copyright",
+            "line": "  MBC JavaScript Library:3"
+        },
+        {
+            "message": "unknown tag: date",
+            "line": "  MBC JavaScript Library:3"
+        },
+        {
+            "message": "unknown tag: version",
+            "line": "  MBC JavaScript Library:3"
+        },
+        {
+            "message": "unknown tag: license",
+            "line": "  MBC JavaScript Library:3"
+        },
+        {
+            "message": "unknown tag: exports",
+            "line": "  MBC JavaScript Library:3"
+        },
+        {
+            "message": "unknown tag: tutorial",
+            "line": "  MBC JavaScript Library:3"
+        },
+        {
+            "message": "replacing incorrect tag: returns with return",
+            "line": " dist/mbc.0.1.0.js:867"
+        },
+        {
+            "message": "Missing item type",
+            "line": " MBC JavaScript Library:3"
+        },
+        {
+            "message": "Missing item type",
+            "line": " dist/mbc.0.1.0.js:23"
+        }
+    ]
+}

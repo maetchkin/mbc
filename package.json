@@ -1,0 +1,34 @@
+{
+  "name": "mbc",
+  "title": "JQuery.Model-Block-Controller plugin",
+  "description": "Plugin for yet another MVC on client-side.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Bogdan Maetchkin",
+    "email": "maetchkin@gmail.com",
+    "url": "https://twitter.com/maetchkin"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.yandex-team.ru/bogdan/mbc.git"
+  },
+  "bugs": {
+    "url": "https://github.yandex-team.ru/bogdan/mbc/issues"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://wiki.yandex-team.ru/MVC/blob/master/LICENSE-MIT"
+    }
+  ],
+  "dependencies": {
+    "grunt": "~0.3.17"
+  },
+  "keywords": [],
+  "devDependencies": {
+    "grunt": "~0.3.17",
+    "grunt-contrib-watch": "~0.1.4",
+    "grunt-contrib-yuidoc": "~0.3.2",
+    "grunt-contrib-internal": "~0.1.1"
+  }
+}

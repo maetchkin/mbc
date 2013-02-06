@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>JQuery.mbc plugin tests</title>
+<!-- Load local jQuery. This can be overridden with a ?jquery=___ param. -->
+<script src="../libs/jquery-loader.js"></script>
+<!-- Load local QUnit (grunt requires v1.0.0 or newer). -->
+<link  href="../libs/qunit/qunit-1.11.0.css" rel="stylesheet" media="screen">
+<script src="../libs/qunit/qunit-1.11.0.js"></script>
+<!-- Load local lib and tests. -->
+<script src="../dist/mbc.0.1.0.js"></script>
+<script src="mbc.test.js"></script>
+
+<!--
+(function( $, mvc ) {
+
+"use strict";
+
+module("mbc core");
+
+    test(
+        "init test",
+        function () {
+            expect(1);
+            ok(  true , "test");
+        }
+    );
+
+}( jQuery, window.mvc ));
+ -->
+
+
+</head>
+<body>
+    <h1 id="qunit-header">JQuery.mbc plugin tests</h1>
+    <h2 id="qunit-banner"></h2>
+    <div id="qunit-testrunner-toolbar"></div>
+    <h2 id="qunit-userAgent"></h2>
+    <ol id="qunit-tests"></ol>
+    <div id="qunit-fixture">
+
+        <div id="test-obj-1"><span class="inner">test-obj-1</span></div>
+
+        <span>lame test markup</span>
+        <span>normal test markup</span>
+        <span>mbc test markup</span>
+    </div>
+
+    <!--  -->
+</body>
+</html>

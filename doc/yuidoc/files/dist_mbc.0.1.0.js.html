@@ -1,0 +1,2463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>dist&#x2F;mbc.0.1.0.js - mbc</title>
+    <link rel="stylesheet" href="http:&#x2F;&#x2F;yui.yahooapis.com&#x2F;3.8.0pr2&#x2F;build&#x2F;cssgrids&#x2F;cssgrids-min.css">
+    <link rel="stylesheet" href="..&#x2F;assets/vendor/prettify/prettify-min.css">
+    <link rel="stylesheet" href="..&#x2F;assets/css/main.css" id="site_styles">
+    <link rel="shortcut icon" type="image/png" href="..&#x2F;assets/favicon.png">
+    <script src="http:&#x2F;&#x2F;yui.yahooapis.com&#x2F;combo?3.8.0pr2&#x2F;build&#x2F;yui&#x2F;yui-min.js"></script>
+</head>
+<body class="yui3-skin-sam">
+
+<div id="doc">
+    <div id="hd" class="yui3-g header">
+        <div class="yui3-u-3-4">
+            
+                <h1><img src="..&#x2F;assets/css/logo.png" title="mbc"></h1>
+            
+        </div>
+        <div class="yui3-u-1-4 version">
+            <em>API Docs for: 0.1.0</em>
+        </div>
+    </div>
+    <div id="bd" class="yui3-g">
+
+        <div class="yui3-u-1-4">
+            <div id="docs-sidebar" class="sidebar apidocs">
+                <div id="api-list">
+    <h2 class="off-left">APIs</h2>
+    <div id="api-tabview" class="tabview">
+        <ul class="tabs">
+            <li><a href="#api-classes">Classes</a></li>
+            <li><a href="#api-modules">Modules</a></li>
+        </ul>
+
+        <div id="api-tabview-filter">
+            <input type="search" id="api-filter" placeholder="Type to filter APIs">
+        </div>
+
+        <div id="api-tabview-panel">
+            <ul id="api-classes" class="apis classes">
+            
+            </ul>
+
+            <ul id="api-modules" class="apis modules">
+            
+                <li><a href="..&#x2F;modules/mbc.html">mbc</a></li>
+            
+            </ul>
+        </div>
+    </div>
+</div>
+
+            </div>
+        </div>
+        <div class="yui3-u-3-4">
+                <div id="api-options">
+        Show:
+        <label for="api-show-inherited">
+            <input type="checkbox" id="api-show-inherited" checked>
+            Inherited
+        </label>
+
+        <label for="api-show-protected">
+            <input type="checkbox" id="api-show-protected">
+            Protected
+        </label>
+
+        <label for="api-show-private">
+            <input type="checkbox" id="api-show-private">
+            Private
+        </label>
+        <label for="api-show-deprecated">
+            <input type="checkbox" id="api-show-deprecated">
+            Deprecated
+        </label>
+
+    </div>
+
+
+            <div class="apidocs">
+                <div id="docs-main">
+                    <div class="content">
+                        <h1 class="file-heading">File: dist&#x2F;mbc.0.1.0.js</h1>
+
+<div class="file">
+    <pre class="code prettyprint linenums">
+&#x2F;**
+Provides window.mbc - global storage for models, modules and views
+
+@copyright Bogdan Maetchkin 2013-1-28
+@version 0.1.0
+@module mbc
+**&#x2F;
+
+
+(
+
+function( $, window, document ){
+
+    &quot;use strict&quot;;
+&#x2F;&#x2F; болванка для глобального объекта mvc
+var mvc = {
+        mvcid: &quot;mvc&quot;,
+        ev: {i:&quot;events&quot;},
+        dfd_cache : {}
+    },
+    _mvc,
+    mvcDelim = &quot;~&quot;,
+    mvcModeDelim = &quot;::&quot;;
+
+
+
+&#x2F;*
+   Autorouting
+
+    &lt;elem&gt;
+       &lt;mvc:action event=&quot;click&quot; route=&quot;parent|data|set&quot;&gt;actionName&lt;&#x2F;mvc:action&gt;
+    &lt;&#x2F;elem&gt;
+ *&#x2F;
+
+$.fn.mvc = function MBConstructor () {
+
+    if ( mvc in this ){
+        return this.mvc;
+    }
+
+    else if ( this instanceof MBConstructor ){
+        return this;
+    }
+
+    else {
+        return new MBConstructor( arguments );
+    }
+
+};
+
+(function($,document){
+var events = &quot;&quot;, e,
+    actionPrefix = &quot;mvc-action-&quot;, &#x2F;&#x2F; todo: config
+    getTarget = function( action, data, block ){
+        var target;
+        switch ( action.route ) {
+            case &quot;parent&quot;: target = mvcGetByID(block.pBlockMVCID);  break;
+            case &quot;set&quot;   : target = mvcGetByID(data.data).parent(); break;
+            case &quot;obj&quot;   : target = mvcGetByID(data.data);          break;
+            default      : target = block;
+        }
+        return target;
+    },
+    getData   = function( node ){
+        var n = node;
+        while ( !$(n).data(&quot;mvc&quot;) ) { &#x2F;&#x2F;hasData returns true in ie
+            n = ($(n).parent())[0] ;
+        }
+        return $(n).data(&quot;mvc&quot;);
+    },
+    getAction = function( etype, elem ){
+        var _classes = elem.className.split(&quot; &quot;),
+            _class,
+            _c,
+            start  = actionPrefix + etype + &quot;-&quot;,
+            a;
+        for (_c in _classes) {
+            _class = _classes[_c];
+            if ( _class.indexOf(start) !== -1 ) {
+                a = _class.substring( start.length, _class.length ).split(&quot;:&quot;);
+                return { name:a[0], route:a[2]||false };
+            }
+        }
+        return false;
+    };
+
+
+for (e in $.attrFn){events += e+&quot; &quot;;}
+
+$(document).on(
+    events,
+
+    &quot;*[class*=\&quot;&quot;+actionPrefix+&quot;\&quot;]&quot;,
+    function( event ){
+        var elem = this,
+            action  = getAction( event.type, elem ),
+            data, block, target, mvcEvent;
+
+        &#x2F;&#x2F;mvc.log(&quot; event=&quot;, event);
+
+        if ( action ) {
+            data  = getData( elem );
+            block = mvcGetByID(data.block);
+            &#x2F;&#x2F;mvc.log(&quot;action=&quot;, action, &quot; data=&quot;, data, &quot; block=&quot;, block);
+            LIB.async(
+                function () {
+                    if ( action.name in block ) {
+                        block[action.name](e);
+                    } else {
+                        &#x2F;&#x2F;mvc.log(&quot;------&quot;,elem);
+                        data.elem = elem;
+                        mvcEvent  = actionPrefix.replace(&#x2F;\-&#x2F;g,&quot;:&quot;) + action.name;
+                        target    = getTarget( action, data, block );
+                        $( target ).trigger( mvcEvent , data);
+                        &#x2F;&#x2F;mvc.log(&quot;-- * &quot;, mvcEvent, target.mvcid, data );
+
+                        &#x2F;&#x2F; callFlag bubbling
+                        var callFlag = data.callFlag, nd;
+                        if ( callFlag ) {
+                            while ( callFlag ) {
+                                target = mvcGetByID( target.pBlockMVCID );
+                                nd = $(target.node).data(&quot;mvc&quot;);
+                                callFlag = (nd &amp;&amp; nd.callFlag===true);
+                                $(target).trigger(mvcEvent, data);
+                            }
+
+                        }
+                    }
+                }
+            );
+        }
+        return false;
+    }
+);
+
+
+})
+($,document);
+
+
+&#x2F;*
+    event wrappers for mvc objects (jQuery 1.7.0)
+
+
+    todo: args processor
+
+this.map(
+
+return is mvc
+
+)
+
+
+*&#x2F;
+
+&#x2F;*
+todo
+
+$(&quot;&#x2F;set&quot;);
+$(&quot;&#x2F;set&#x2F;obj&quot;);
+$(&quot;&#x2F;set&#x2F;obj&#x2F;prop&quot;).listen( function (event, data){  } );
+$(&quot;&#x2F;set&#x2F;*[prop-id]&quot;);
+$(&quot;&#x2F;set&#x2F;*[prop-id=&#x27;value&#x27;]&quot;);
+
+*&#x2F;
+
+
+var handlerWrapper = function( origHandler, mvcid ){
+    var ctx = mvcGetByID( mvcid );
+    return function(){
+        return origHandler.apply( ctx, arguments );
+    };
+};
+
+
+$.fn.on = (
+    function( $on, handlerWrapper ) {
+        return function( ){
+
+            var args = ([]).slice.call(arguments,0), mvcid;
+            
+            if ( this.length === 1 &amp;&amp; &quot;mvcid&quot; in this[0] &amp;&amp; &quot;ev&quot; in this[0] ) {
+                mvcid   = this[0].mvcid;
+                this[0] = this[0].ev;
+                for (var a = 0, origHandler; a &lt; args.length; a++ ){
+                    if( $.isFunction( args[a] ) ){
+                        origHandler = args[a];
+                        args[a] = handlerWrapper( origHandler, mvcid );
+                    }
+                }
+            }
+            return $on.apply(this,args);
+        };
+    }
+
+)
+($.fn.on, handlerWrapper );
+
+$.fn.off = (
+    function( off ){
+        return function(){
+            var first = this[0] || null;
+            if (first &amp;&amp; (&quot;mvcid&quot; in first) ) {
+                this[0] = mvcGetByID( first.mvcid ).ev;
+                &#x2F;&#x2F;mvc.log(&quot;OFF &quot;, first.mvcid );
+            }
+            return off.apply(this,arguments);
+        };
+    }
+)
+($.fn.off);
+
+$.fn.trigger = (
+    function( trigger ){
+        return function(){
+            var first = this[0] || null; &#x2F;&#x2F; todo: function replaceMvcObjsIn$handlers(){}
+            if (first &amp;&amp; (&quot;mvcid&quot; in first)) {
+                this[0] = mvcGetByID( first.mvcid ).ev;
+            }
+            return trigger.apply(this, arguments);
+        };
+    }
+)
+($.fn.trigger);
+
+
+
+var HTML = {
+    head:document.getElementsByTagName(&quot;head&quot;).item(0),
+    body:document.body
+};
+
+var LIB = (
+
+  function( w, mvc ){
+
+    var lib = {},
+
+        resolved = $.Deferred().resolve().promise();
+
+
+    &#x2F;&#x2F; обертка для асинхронного вызова
+    lib.async = function(cb){
+        return window.setTimeout(cb,4);
+    };
+
+    &#x2F;&#x2F; копирование свойств в контекст
+    lib.merge = function(src){
+        var m;
+        for (m in src){
+            this[m] = src[m];
+        }
+        return this;
+    };
+
+    &#x2F;&#x2F; присвоение функции уникального идентификатора,
+    &#x2F;&#x2F; возвращает функцию по идентификатору
+    var funcsArr   = {},
+        funcsCount = 0;
+
+    lib.functionID = function( func ){
+        if ( typeof func === &quot;function&quot; ) {
+            if ( &quot;id&quot; in func ) {
+                return func;
+            }else{
+                func.id = funcsCount++;
+                funcsArr[func.id] = func;
+                return func;
+            }
+        } else if (typeof func === &quot;string&quot; &amp;&amp; func in funcsArr){
+            return funcsArr[func];
+        }
+        throw &quot;LIB.functionID: incorrect argument type &quot; + (typeof func);
+    };
+
+    &#x2F;&#x2F; Асинхронная загрузка статики из localStorage
+    var ls = &quot;localStorage&quot;,
+        lsCache = {},
+        mvcCachePrefix = &quot;mvc.cache:&quot;;
+
+    lib.ls = ls = (ls in w) ?
+                    (
+                    function( ls ){
+                        try {
+
+                            var uid = new Date(), _uid;
+                            ls.setItem(uid,uid);
+                            _uid = ls.getItem(uid);
+                            ls.removeItem(uid);
+                            return uid === _uid ? ls : false;
+
+                        } catch( errorLs ) {
+                            try {
+                                ls.clear();
+                            } catch ( errorLsClear ) {
+                                &#x2F;&#x2F; enjoy the silence, bro
+                            }
+                            return false;
+                        }
+                    }
+                    )
+                    (
+                        w[ls]
+                    )
+
+                :
+                    false;
+
+    if ( ls !== false ){
+        $( mvc ).on(
+            &quot;mvc:resources&quot;,
+            function(){
+                try {
+                    for (var k in ls){
+                        if ( k.indexOf( mvcCachePrefix ) === 0 ) {
+                            lsCache[ k ] = ls.getItem( k );
+                        }
+                    }
+                } catch ( errorLsCache ) {
+                    lsCache = false;
+                }
+                &#x2F;&#x2F;console.log( &quot;lsCache&quot;,lsCache );
+            }
+        );
+    }
+
+    &#x2F;&#x2F; вытаскиваем код аяксом
+    var loadStaticAsync = function ( src ) {
+        return $.ajax(
+                    {
+                        url:      src,
+                        dataType: &quot;text&quot;
+                    }
+                )
+                .fail(
+                    function(){
+                        throw &quot;mvc.lib.loadStaticAsync &quot; + src + &quot; failed&quot;;
+                    }
+                )
+                .promise();
+    };
+
+    &#x2F;&#x2F; на каждый кусок кода вешаем Deferred
+    var evalCode = function (mkey, loader, code ){
+            mvc.dfd_cache[mkey] = $.Deferred();
+            lib.async(
+                function(){
+                    loader( code, mkey );
+                }
+            );
+            return mvc.dfd_cache[mkey].promise();
+    };
+
+    var loadStatic = function ( loader ) {
+        return function(src, key, sum){
+            var mkey,
+                msum,
+                _msum = false,
+                code = false;
+
+            if ( ls &amp;&amp; sum) {
+                mkey  = key ? mvcCachePrefix + key : false;
+                msum  = sum ? mvcCachePrefix + sum : false;
+
+                try {
+                    _msum = lsCache[mkey];
+                    if ( _msum === msum ) {
+                        code = lsCache[msum];
+                    }
+                }
+                catch ( errorLsCacheAccess ) {
+
+                }
+
+
+                if ( code !== false &amp;&amp; _msum !== false ) {
+                    try {
+                        return evalCode(mkey, loader, code );
+                    }
+                    catch ( errorEvalCode ) {
+                        return false;
+                    }
+
+
+                    &#x2F;* TODO:  https:&#x2F;&#x2F;github.com&#x2F;doochik&#x2F;SafeLS https:&#x2F;&#x2F;github.com&#x2F;marcuswestin&#x2F;store.js *&#x2F;
+
+                } else {
+
+                    try {
+                        ls.removeItem( mkey );
+                        ls.removeItem( _msum );
+                    }
+                    catch ( errorLsCacheRemove ) {
+
+                    }
+
+                    var process = $.Deferred();
+
+                    loadStaticAsync( src )
+                        .done(
+                            function( data ) {
+                                try {
+                                    ls.setItem(mkey, msum);
+                                    ls.setItem(msum, data);
+                                }
+                                catch ( errorLsCacheSetItem ) {
+
+                                }
+                                evalCode(mkey, loader, data )
+                                    .done(
+                                        function(){
+                                            process.resolve();&#x2F;&#x2F;mvc.log(&quot;1 evalCode done&quot;,src);
+                                        }
+                                    )
+                                    .fail(
+                                        function(){
+                                            process.reject();&#x2F;&#x2F;mvc.log(&quot;1 evalCode fail&quot;,src);
+                                        }
+                                    );
+                            }
+                    );
+
+                    return process.promise();
+                }
+            } else {
+                return loadStaticAsync( src ).done( loader );
+            }
+        };
+    };
+
+    &#x2F;&#x2F; кроссбраузерная загрузка кода
+    lib.load = {
+        script : loadStatic(
+            function( _code, _mkey ){&#x2F;* mvc.log(&quot;prnum&quot;,&quot;&quot;+mkey+&quot;&quot;,mvc.dfd_cache[&quot;&quot;+ mkey +&quot;&quot;].isResolved());*&#x2F;
+                var mkey = _mkey.indexOf( mvcCachePrefix ) !== -1 ? _mkey : false,
+                    code = _code + (mkey ? &quot;;mvc.dfd_cache[\&quot;&quot;+ mkey +&quot;\&quot;].resolve();&quot; : &quot;&quot;);
+
+                try {
+                    if ( $.browser.msie ) {
+                        window.execScript( code );
+                    } else if ( $.browser.opera ) {
+                        eval.call( w, code );
+                    } else {
+                        var script = document.createElement(&quot;script&quot;);
+                            script.setAttribute(&quot;type&quot;, &quot;text&#x2F;javascript&quot;);
+                            script.setAttribute(&quot;charset&quot;, &quot;utf-8&quot;);
+                            script.innerHTML = code;
+                            HTML.head.insertBefore(script, HTML.head.firstChild);
+                    }
+                } catch (e) {
+                    if (mkey) {
+                        mvc.dfd_cache[mkey].reject();
+                    } else {
+                        mvc.log(&quot;Exeption:lib.load.script &quot;,e);
+                    }
+                }
+            }
+        ),
+        style : loadStatic(
+            function( code, _mkey ){
+                var mkey = _mkey.indexOf(mvcCachePrefix) !== -1 ? _mkey : false,
+                    style = document.createElement(&quot;style&quot;);
+                HTML.head.appendChild(style);
+                if ( style.styleSheet ) { &#x2F;&#x2F; IE
+                    style.styleSheet.cssText = code;
+                } else {
+                    style.appendChild( document.createTextNode(code) );
+                }
+                if (mkey) {
+                    mvc.dfd_cache[mkey].resolve();
+                }
+            }
+        ),
+        i18n : function( keyset, _project ){ &#x2F;&#x2F; todo: project, build without i18n
+            var project = _project || mvc.obj(&quot;mvc-config&quot;).prop(&quot;project&quot;),
+                i18n_id = project + &quot;.&quot; + keyset,
+                d_ks    = mvc.set(&quot;mvc-i18n&quot;).obj(i18n_id),
+                md5     = d_ks.prop(&quot;md5&quot;),
+                load    = d_ks.prop(&quot;load&quot;),
+                config  = mvc.obj(&quot;mvc-config&quot;).snapshot,
+                lang    = config.lang || &quot;ru&quot;,
+                cdn     = config.cdn  || &quot;&quot;;
+
+            return load === true ? resolved : lib.load.script.apply(
+                    window,
+                    md5 ? [ cdn + &quot;&#x2F;_c&#x2F;i18n&#x2F;&quot;+lang+&quot;&#x2F;&quot;+i18n_id+&quot;.&quot;+md5+&quot;.js&quot;, &quot;i18n&#x2F;&quot;+lang+&quot;&#x2F;&quot;+project+&quot;&#x2F;&quot;+keyset , md5 ]
+                        : [ &quot;&#x2F;i18n&#x2F;&quot;+lang+&quot;&#x2F;&quot;+i18n_id+&quot;.js?_=&quot;+Math.random() ]
+                )
+                .done(
+                    function(){
+                        &#x2F;&#x2F;mvc.log(&quot;mvc-i18n done&quot;,i18n_id);
+                        d_ks.prop(&quot;load&quot;,true);
+                    }
+                )
+                .promise();
+        }
+    };
+
+
+    &#x2F;&#x2F; обёртка для загрузки данных аяксом
+    var mvcDataSignCounter = 0;
+
+    lib.load.data = function( options ){
+        var dfd = $.Deferred(),
+            sign = mvcDataSignCounter++,
+            sk   = (mvc.obj(&quot;mvc-config&quot;).prop(&quot;use-sk&quot;) === true ? mvc.obj(&quot;user&quot;).prop(&quot;sk&quot;) : false) ,
+            ajax;
+
+
+        options.dataType = &quot;script&quot;;
+
+        options.cache    = options.cache || false;
+
+        if (options.type === &quot;POST&quot;) {
+            options.data.mvcDataLoadSignature = sign;
+            if (sk) {
+                options.data.sk = sk;
+            }
+        } else {
+            options.url += (options.url.indexOf(&quot;?&quot;) === -1 ? &quot;?&quot; : &quot;&amp;&quot;) + &quot;mvcDataLoadSignature=&quot;+sign +(sk?&quot;&amp;sk=&quot;+sk:&quot;&quot;);
+        }
+
+        ajax = $.ajax( options )
+                .fail(
+                    function(){
+                        dfd.rejectWith(ajax);
+                    }
+                );
+
+        $( mvc ).one(
+            &quot;mvc:dataLoad:&quot;+sign,
+            function(){
+                dfd.resolveWith(ajax);
+            }
+        );
+        &#x2F;&#x2F; mvc.log(&quot;dfd&quot;,options,dfd);
+        return dfd.promise();
+    };
+
+    return lib;
+
+})
+(window,mvc);
+
+
+
+var mvcModulizer = function ( module ) {
+
+    var moduleLoad  = (&quot;load&quot; in module) ? module.load : null,
+        moduleTimer = null,
+        moduleInit  = null;
+
+    var dfd = $.Deferred();
+    &#x2F;&#x2F; debug
+    dfd.done(
+        function () {
+        &#x2F;&#x2F;mvc.log(&quot;module ready&quot;,this);
+        }
+    );
+
+    dfd.fail(
+        function () {
+            mvc.log(&quot;module &quot;+this.type+&quot;:&quot;+this.id+&quot; load failed m-s=&quot;+module.prop(&quot;status&quot;));
+            module.prop(&quot;status&quot;, &quot;error&quot;);
+        }
+    );
+
+    var resolve = function () {
+        return dfd.resolveWith( module );
+    };
+
+    var reject = function () {
+        return dfd.rejectWith( module );
+    };
+
+    $( module )
+        .on(
+            &quot;mvc:propUpdated:status&quot;,
+            function () {
+                if ( module.prop(&quot;status&quot;) === &quot;ready&quot; ) {
+                    return resolve();
+                } else if (module.prop(&quot;status&quot;) === &quot;error&quot;) {
+                    return reject();
+                }
+            }
+        );
+
+    module.cast = function ( method ) {
+
+        if ( !arguments.length ) { &#x2F;&#x2F; todo:  arguments
+            throw &quot;mvc.module.cast: no arguments&quot;;
+        }
+
+        var cast     = $.Deferred(),
+            rejecter = function () {
+                return cast.rejectWith( module );
+            },
+            args     = ([]).slice.call(arguments,1),
+            cast_method  = function(){
+                            if (typeof method === &quot;string&quot;) {
+                                if (!(method in module)) {
+                                    throw &quot;mvc.module.cast: method[&quot;+method+&quot;] not defined in module[&quot;+module.id+&quot;]&quot;;
+                                }
+                            } else if(typeof method === &quot;function&quot;){
+                                return method;
+                            } else {
+                                throw &quot;mvc.module.cast: incorrect method argument&quot;;
+                            }
+                            return module[method];
+                        };
+
+            &#x2F;&#x2F;mvc.log(&quot;module.cast method=&quot;,method,&quot; args=&quot;,args);
+
+            LIB.async(
+                function () {
+                    module
+                        .load()
+                        .done(
+                            function(){
+                                var res = cast_method().apply(module, args);
+                                if ( res instanceof Object &amp;&amp; &quot;promise&quot; in res ) {
+                                    res.done(
+                                        function(){
+                                            cast.resolveWith(this, arguments);
+                                        }
+                                    ).fail(
+                                        rejecter
+                                    );
+                                    cast.pipe( res );
+                                } else {
+                                    cast.resolveWith(module, [res]);
+                                }
+                            }
+                        )
+                        .fail(
+                            rejecter
+                        );
+                }
+            );
+
+        return cast.promise();
+    };
+
+
+
+
+    module.load = function () {
+        if (moduleTimer === null) {
+            moduleInit  = null;
+            moduleTimer = window.setTimeout(
+                function () {
+                    if ( moduleTimer ) {
+                        throw &quot;moduleTimer &quot; + module.id;
+                    }
+                },
+                mvc.obj(&quot;mvc-config&quot;).prop( module.type + &quot;-timeout-ms&quot; )
+            );
+
+            moduleLoad
+                .call( module )
+                .fail( reject );
+
+        }
+        &#x2F;&#x2F;mvc.log(&quot;load &quot;,module.type,&quot; &quot;,module.id);
+        return dfd.promise();
+    };
+
+    module.get = function (  ) { &#x2F;&#x2F; todo: arguments
+        
+        var arg = 1 in arguments[0] ? arguments[0][1] : null;
+
+        if ( arg ) {
+
+            &#x2F;*console.log (&quot;module.get( arg )&quot;, arg);*&#x2F;
+
+            if ( moduleTimer ) {
+                window.clearTimeout( moduleTimer );
+            }
+
+            LIB.merge.call( module, arg );
+
+            var initRes = (&quot;init&quot; in module ? module.init() : true);
+
+            &#x2F;&#x2F;mvc.log(&quot;initRes&quot;, module, initRes);
+
+            if ( initRes === true) {
+                resolve();
+            } else if(initRes === false || initRes === void(0) ){
+
+               module.initRes = initRes;
+
+            } else if(&quot;done&quot; in initRes){
+                initRes
+                    .done( resolve )
+                    .fail( reject  );
+            }
+        }
+        return module;
+    };
+
+    return module;
+};
+
+
+
+&#x2F;*
+Блоковый API для data-объектов
+*&#x2F;
+var mvcBlockable = {
+
+&#x2F;*
+метод создания блока
+view - объект типа mvc.view
+slot - место, куда вставить результат. Либо $( selector ), либо mvc.slot внутри блока
+возвращает mvc.block с $.promise
+
+пример
+
+mvc.set(&quot;items&quot;)
+    .block( mvc.view(&quot;list&quot;), $(&quot;#container&quot;) )
+    .done(
+            function(){
+                $( this ).on(
+                    &quot;mvc:action:actionName&quot;,
+                    function(){
+                        &#x2F;&#x2F; action callback
+                    }
+                );
+            }
+         );
+*&#x2F;
+    block : function( view, _slot ){
+
+        var template, slot, blockID;
+
+        if ( arguments.length === 2 ) {
+            template = ( (view &amp;&amp; (&quot;mvcid&quot; in view) ) ? &quot;default&quot;: view.template ),
+                slot     = (&quot;mvcid&quot; in _slot &amp;&amp; _slot.type === &quot;slot&quot;) ? _slot : mvcMakeSlot( _slot ),
+                blockID  = view.id +&quot;:&quot;+ template +&quot;:&quot;+ slot.id;
+
+            &#x2F;&#x2F;mvc.log(&quot;BLOCK &quot;, this.id, blockID);
+                this.unblock( this.mvcid+mvcDelim+blockID );
+
+
+
+            return mvcStorage.apply( this, [blockID, _mvc.block  ]).get(arguments, slot.pid ); &#x2F;&#x2F; todo arguments
+        } else if ( arguments.length === 1 ) { &#x2F;&#x2F; ?
+
+            &#x2F;&#x2F;mvc.log(&quot;GET BLOCK&quot;, blockID);
+            return mvcStorage.apply( this, [ arguments[0], _mvc.block  ] );
+        }
+
+        throw &quot;mvc.block - incorrect arguments&quot;;
+    },
+
+    unblock : function( blockID ){
+        if ( blockID &amp;&amp; blockID in _mvc.block.s ) {
+            &#x2F;&#x2F;mvc.log(&quot;UNBLOCK &quot;, blockID);
+            return _mvc.block.s[ blockID ].unblock( true );
+        }
+        return false;
+    },
+
+    unblockAll : function(){
+        &#x2F;&#x2F;mvc.log(&quot;UNBLOCK-ALL &quot;, this.id);
+        for (var b in _mvc.block.s ) {
+            if ( _mvc.block.s[b].pid === this.mvcid ) {
+
+                this.unblock(
+                    _mvc.block.s[b].mvcid
+                );
+            }
+        }
+        return this;
+    }
+};
+
+
+
+var mvcProp   = {
+
+    type  : &quot;prop&quot;,
+
+    value : null,
+
+    toString:function(){
+        return this.value;
+    },
+
+    get  : function(){ &#x2F;&#x2F; getter todo arguments
+        &#x2F;&#x2F;mvc.log(&quot;mvcProp get&quot;, arguments);
+        if (0 in arguments &amp;&amp; 1 in arguments[0] &amp;&amp; arguments[0][1] !== this.value) {
+            var prop   = this,
+                old    = prop.value,
+                obj    = this.parent() || mvc;
+
+            prop.value = arguments[0][1];
+
+            &#x2F;&#x2F;&#x2F;console.log ( prop );
+
+            if (2 in arguments[0]) {
+                arguments[0][2][this.id] = arguments[0][1];
+                arguments[0][2].length++;
+            }
+
+            if ( !(&quot;snapshot&quot; in obj)) {
+                obj.snapshot = {};
+            }
+            obj.snapshot[prop.id] = prop.value;
+
+            $(obj).trigger(&quot;mvc:propUpdate&quot;, [prop.id] );
+            $(obj).trigger(&quot;mvc:propUpdated:&quot;+prop.id,[prop,old]);
+
+
+            &#x2F;&#x2F;mvc.log(&quot;------------mvc:propUpdated:&quot;+prop.id,&quot; &quot;,this.pid,this.parent() );
+
+
+        }
+        return this.value;
+    }
+
+};
+
+
+
+var mvcModule = {
+
+    type: &quot;module&quot;,
+
+    init: function () {
+        mvcModulizer( this );
+        return true;
+    },
+
+    load: function () { &#x2F;&#x2F; todo: mv path to config
+        var module  = mvc.set(&quot;mvc-modules&quot;).obj( this.id ),
+            sum     = module.prop(&quot;jsmd5&quot;),
+            config  = mvc.obj(&quot;mvc-config&quot;).snapshot,
+            dynpath = config[&quot;dynamic-path&quot;] || &quot;&quot;,
+            mpath   = sum ? &quot;&#x2F;&quot; + module.prop(&quot;path&quot;) + &quot;&#x2F;static&#x2F;modules&#x2F;&quot; : dynpath + &quot;&#x2F;mvc&#x2F;modules&#x2F;&quot;,
+            key     = mpath + module.id,
+            src     = key   + (sum ? &quot;.&quot; + sum + &quot;.js&quot; : &quot;.js?_=&quot; + Math.random());
+            src     = config.cdn ? config.cdn + src : src;
+        return LIB.load.script( src, key, sum );
+    },
+
+    prop: function ( id, value ) {
+        value = value ? value : null;
+        return mvcStorage.apply(this, [id, _mvc.prop]).get(arguments); &#x2F;&#x2F; todo: arguments
+    }
+
+};
+
+
+
+var mvcBlock = {
+    type : &quot;block&quot;,
+
+    init : function(){
+        this.slots       = [];
+        this.propbind    = {};
+        this.pBlockMVCID = null;
+
+        $(this).on(
+            &quot;mvc:objectCreated&quot;,
+            function (e,obj) {
+                if (obj.type === &quot;slot&quot;) {
+                    &#x2F;&#x2F;mvc.log(&quot;mvcBlock mvc:objectCreated slot&quot;,this,arguments);
+                    this.slots.push(obj.mvcid);
+                }
+          }
+        );
+    },
+
+    done   : function() {
+        return this.rendering.done.apply(this,arguments);
+    },
+    fail   : function() {
+        return this.rendering.fail.apply(this,arguments);
+    },
+
+    prop   : function(id) {
+        return mvcStorage.apply(this,[id,_mvc.prop]).get(arguments);
+    },
+
+    unblock : function( flag ){
+        var block       = this;
+
+        &#x2F;&#x2F;mvc.log(&quot;___b_UNBLOCK\n      block.mvcid=&quot;, block.mvcid ,&quot;\n      block.parent().id=&quot;, block.parent().id);
+
+        for (var s in block.slots){
+            _mvc.slot.s[ block.slots[s] ].unblock();
+            delete _mvc.slot.s[ block.slots[s] ];
+        }
+
+        $( block ).off();
+
+        if (flag &amp;&amp; block.pBlockMVCID) {
+            delete block._slot().blocks[block.pid];
+        }
+        if (&quot;unbindDataListener&quot; in block) {
+            try {
+                block.unbindDataListener();
+                block.node.remove();
+            } catch (e) {
+                &#x2F;&#x2F;mvc.log(&quot;remove ex:block.id&quot;, block.id);
+                &#x2F;&#x2F;mvc.log(&quot;remove ex:block&quot;, block);
+                &#x2F;&#x2F;mvc.log(&quot;remove ex:e&quot;, e);
+            }
+        }
+
+        for (var p in _mvc.prop.s){
+            if ( p.indexOf(block.mvcid+mvcDelim+&quot;prop&quot;+mvcDelim) !== -1 ) {
+                _mvc.prop.s[p] = null;
+                delete _mvc.prop.s[p];
+            }
+        }
+
+        _mvc.block.s[block.mvcid]=null;
+        delete _mvc.block.s[block.mvcid];
+        return true;
+    },
+
+    applyTemplates: function( arg ){
+        arg.template = arg.name;
+        arg.id       = &quot;apply-&quot; + arg.view + &quot;-&quot; + arg.template + &quot;-&quot; + this.parent().id.replace( &#x2F;:&#x2F;gi,&quot;_&quot;); &#x2F;&#x2F;(mvcSlotCounter++);
+        return this.slot(arg);
+    },
+
+    callTemplate: function( arg ){
+        arg.template = arg.name;
+        arg.callFlag = true;
+        arg.id       = &quot;call-&quot; + arg.view + &quot;-&quot; + arg.template + &quot;-&quot; + this.parent().id.replace( &#x2F;:&#x2F;gi,&quot;_&quot;); &#x2F;&#x2F;+ &quot;-&quot; + (mvcSlotCounter++);
+        return this.slot(arg);
+    },
+
+    slot : function( arg ){
+        var obj = (typeof arg === &quot;string&quot;) ? {id:arg,tag:&quot;div&quot;} : arg,
+            slot = mvcStorage.apply(this, [ obj.id, _mvc.slot ]);
+        return LIB.merge.call(slot,obj);
+    },
+
+    getter : function(getter){
+        var view = this._view();
+        if (&quot;block_methods&quot; in view &amp;&amp; getter in view.block_methods) {
+            var args = [];
+            for (var i=1; i&lt;=arguments.length; i++){
+                if (arguments[i]!==undefined) {
+                    this.propbind[ arguments[i] ] = true;
+                    args.push(
+                        this.parent().prop( arguments[i] )
+                    );
+                }
+            }
+            return view.block_methods[getter].apply(this,args);
+        } else {
+            &#x2F;&#x2F;mvc.log(&quot;getter&quot;,view);
+            return &quot;&quot;;
+        }
+    },
+
+    initJS: function(){
+        var template = this._template(),
+            initMethod = template &amp;&amp; template !== &quot;default&quot; ? &quot;initBlock_&quot;+template : &quot;initBlock&quot;; &#x2F;&#x2F; todo: mv to {_:f(){},init:f(){}}
+        if ( initMethod in this._view() ) {
+            return this._view()[initMethod](this);
+        }
+    },
+
+    data : function(src,prop){
+        switch (src) {
+                case &quot;prop&quot;:
+                    this.propbind[prop] = true;
+                    var val = this.parent().prop(prop);
+                    return val !== null ? val : &quot;&quot;;
+                case &quot;b-prop&quot;:
+                    return (prop in this.parent() ? this.parent()[prop] : &quot;&quot; );
+                case &quot;getter&quot;:
+                    return this.getter.apply(this, prop.split(&quot;,&quot;));
+                &#x2F;*case &quot;i18n&quot;:
+                    var k = prop.split(&quot;,&quot;);
+                    return this.i18n(k[0],k[1]);*&#x2F;
+                case &quot;param&quot;:
+                    &#x2F;&#x2F;mvc.log(&quot;block:data &quot;,this._slot());
+                    return ( (&quot;params&quot; in this._slot()) &amp;&amp; (prop in this._slot().params) ) ? this._slot().params[prop] : &quot;&quot;;
+                default:
+                    throw   &quot;block.data undefined method &quot; + src;
+            }
+        return &quot;&quot;;
+    },
+
+    i18n: function(keyset,key){
+        var src = window.i18n[ mvc.obj(&quot;mvc-config&quot;).prop(&quot;project&quot;) ][ keyset ];
+        return (src &amp;&amp; key in src)?(src[key])():(mvc.obj(&quot;mvc-config&quot;).prop(&quot;logger&quot;)?&quot;--i18n.&quot;+keyset+&quot;.&quot;+key+&quot;--&quot;:&quot;&quot;);
+    },
+
+    _render: function(){
+        var block    = this,
+            template = block._template(),
+            view     = block._view(),
+            slot     = block._slot(),
+            dfd      = block.rendering,
+            node     = block.node,
+            i18n     = window.i18n[ mvc.obj(&quot;mvc-config&quot;).prop(&quot;project&quot;) ];
+
+        &#x2F;&#x2F;mvc.log(&quot;___b_render_START \n      data.id=&quot;, data.id,&quot;\n      block.id=&quot;, block.mvcid);
+
+        if ( template in view.storage ) {
+
+            slot[ node ? &quot;replace&quot; : &quot;insert&quot;] ( block, $( view.storage[template]._.call( block, i18n ) ) );
+
+            $.when.apply(
+                null,
+                $.map(
+                    block.slots,
+                    function(mvcid){
+                        return mvcGetByID(mvcid).render();
+                    }
+                )
+            )
+            .done(
+                function(){
+                    block.initJS();
+                    &#x2F;&#x2F;mvc.log(&quot;___b_render_COMPLETE \n      data.id=&quot;, data.id,&quot;\n      block.id=&quot;, block.mvcid);
+                    dfd.resolveWith( block );
+                }
+            )
+            .fail(
+                dfd.reject
+            );
+
+        } else {
+            dfd.reject();
+            throw &quot;no template &quot; + template + &quot; in view &quot; + view.id;
+        }
+        return true;
+    },
+
+    _view  : function(){
+        return mvc.view( ( this.id.split(&quot;:&quot;) )[0] );
+    },
+
+    _template  : function(){
+        return (this.id.split(&quot;:&quot;))[1];
+    },
+
+    _slot  : function(){
+        &#x2F;&#x2F;mvc.log(&quot;_slot&quot;, this.pBlockMVCID,  this.id.split(&quot;:&quot;)); &#x2F;&#x2F;!
+        if ( this.pBlockMVCID &amp;&amp; this.pBlockMVCID !== &quot;mvc&quot; ) {
+            return mvcGetByID(this.pBlockMVCID).slot((this.id.split(&quot;:&quot;))[2]);
+        } else {
+            return mvc.slot((this.id.split(&quot;:&quot;))[2]);
+        }
+    },
+
+    get  : function(){ &#x2F;&#x2F; todo: arguments
+
+        if ( arguments[0].length === 1 ) {
+            return this;
+        }
+
+        var block = this;
+
+        if ( !block.rendering ) {
+        &#x2F;&#x2F;    throw &quot;block already has rendering promise&quot;
+        &#x2F;&#x2F;} else {
+            block.rendering = $.Deferred();
+        }
+
+
+        &#x2F;&#x2F;dfd   = $.Deferred(),
+
+        if (1 in arguments) {
+            block.pBlockMVCID = arguments[1];
+        }
+
+
+
+        LIB.async(
+            function() {
+                block
+                    ._view()
+                    .cast( &quot;render&quot;, block.mvcid )
+                    .fail(
+                        function(){
+                            return block.rendering.rejectWith( block );
+                        }
+                    );
+            }
+        );
+
+        return $.extend(
+            true,
+            {
+                on : function(){
+                    $.fn.on.apply( $(block.ev), arguments );
+                    return this;
+                }
+            },
+            block,
+            block.rendering.promise()
+        );
+    }
+};
+
+
+
+var mvcObj    = {
+
+type : &quot;obj&quot;,
+
+init: function(){
+    var obj = this,
+        ID  = obj.id,
+        p   = obj.parent();
+    obj.selectorID = &quot;#&quot;+ID.replace(&#x2F;%&#x2F;g,&quot;\\%&quot;).replace(&#x2F;:&#x2F;g,&quot;\\:&quot;);
+    $( obj ).on(
+        &quot;mvc:propUpdate&quot;,
+        function(e,propid){
+            if (p &amp;&amp; !(&quot;loadflag&quot; in p)) {
+                var up = {};
+                up[propid] = obj.prop(propid);
+                &#x2F;&#x2F;console.log(&quot;proxy mvc:objectUpdated from &quot;+this.id+&quot; to &quot;+p.id);
+                $(p).trigger(&quot;mvc:objectUpdated&quot;, [ID,up] );
+            }
+        }
+    );
+},
+
+prop : function(id){
+    return mvcStorage.apply( this,[id,_mvc.prop] ).get(arguments); &#x2F;&#x2F; todo: arguments
+},
+
+get  : function(){ &#x2F;&#x2F; todo: arguments
+    if (0 in arguments &amp;&amp; 1 in arguments[0]) {
+        var conf         = arguments[0][1][0],
+            data         = arguments[0][1][1],
+            updatedProps = arguments[0][1][2] || {};
+
+        for (var p in conf){
+            if ( (p-1) &gt;= -1 ) { &#x2F;&#x2F; todo
+                this.prop( conf[p], data[p-(-1)], updatedProps );
+            }
+        }
+    }
+    return this;
+},
+
+json : function( json ){
+    for (var prop in json) {
+        switch ( typeof json[prop]) {
+            case &quot;string&quot;   : this.prop( prop, json[prop] ); break;
+            case &quot;number&quot;   : this.prop( prop, json[prop] ); break;
+            case &quot;boolean&quot;  : this.prop( prop, json[prop] ); break;
+            case &quot;function&quot; : this[prop] = json[prop];       break;
+            default: break;
+        }
+    }
+    return this;
+},
+
+html : function( _class ){
+    return _class ? window.$(this.selectorID).find(&quot;.&quot;+_class) : window.$(this.selectorID);
+}
+
+};
+
+LIB.merge.call(mvcObj, mvcBlockable);
+
+
+
+var mvcSet    = {
+
+type   : &quot;set&quot;,
+
+init   : function(){
+    var set    = this;
+    this.mods  = {};
+    this.index = [];
+
+    this._fire_index = 0;
+
+    $(set).on(
+        &quot;mvc:objectCreated mvc:objectDeleted&quot;,
+        function (e,obj) {
+            if (obj.type === &quot;obj&quot;) {
+                if (e.type === &quot;mvc:objectCreated&quot;) {
+                    set.index.push( obj.mvcid );
+                }
+                mvcStorage.apply(this , [&quot;length&quot;,_mvc.prop] ).get( [&quot;length&quot;,set.index.length] );
+
+                if ( set._fire_index === 0 ) {
+                    LIB.async(
+                        function(){
+                            &#x2F;&#x2F;mvc.log(&quot;trigger mvc:index&quot;,set.id);
+                            $( set ).trigger(&quot;mvc:index&quot;, set.index.length );
+                            &#x2F;&#x2F;mvc.log(&quot;set._fire_index&quot;,set.id,set._fire_index);
+                            set._fire_index = 0;
+                        }
+                    );
+                }
+                set._fire_index++;
+            }
+        }
+    );
+},
+
+
+obj    : function(id){
+    return mvcStorage.apply( mvcGetByID( (this.mvcid.split(mvcModeDelim))[0] ) ,[id,_mvc.obj]).get(arguments) ; &#x2F;&#x2F; todo: arguments
+},
+
+get    : function(){ &#x2F;&#x2F; todo: arguments
+  if ( 1 in arguments[0] ) {
+
+    this.loadflag = true;
+    &#x2F;&#x2F;console.log(&quot;---LOADFLAG----&quot;+this.id);
+    &#x2F;&#x2F;console.log(arguments[0][1]);
+
+    var frame = arguments[0][1][0].length+1;
+    var data  = arguments[0][1][1];
+    for (var pos=0; data.length &gt; pos+frame; pos+=frame){
+        var updatedProps = { length : 0 };
+        this.obj(
+            data[pos],
+                [
+                    arguments[0][1][0],
+                    data.slice( pos, pos + frame ),
+                    updatedProps
+                ]
+            );
+
+        if (updatedProps.length &gt; 0) {
+            updatedProps.length = null;
+            delete updatedProps.length;
+            $(this).trigger(
+                &quot;mvc:objectUpdated&quot;,
+                [ data[pos], updatedProps ]
+            );
+        }
+    }
+
+    delete this.loadflag;
+    &#x2F;&#x2F;console.log(&quot;---DELETE LOADFLAG----&quot;+this.id);
+  }
+  return this;
+},
+
+each : function( callback, filter ){
+    var res = [],
+        pos = 1,
+        spos = 1,
+        key,
+        obj;
+
+    if (arguments.length === 0 || !$.isFunction(callback) || !( filter &amp;&amp; $.isFunction(filter) ) ){
+        throw &quot;mvc.each incorrect arguments&quot;;
+    }
+
+    for( key in this.index ){
+        obj = _mvc.obj.s[ this.index[key] ];
+        if ( (key-1)&gt;=-1 ) {
+            if( !filter || ( filter &amp;&amp; filter.call( obj, spos )) ){
+                obj.position = pos++;
+                res.push(
+                    callback.call( obj )
+                );
+            }
+            spos++;
+        }
+    }
+
+    return res;
+},
+
+prop   : function( id ) {
+    if (id === &quot;length&quot;) {
+        return this.index.length;
+    }
+    return mvcStorage.apply(this,[id,_mvc.prop]).get(arguments); &#x2F;&#x2F; todo: arguments
+},
+
+first: function(){
+    return this.index.length ? _mvc.obj.s[ this.index[0] ] : null;
+},
+
+last: function(){
+    return this.index.length ? _mvc.obj.s[ this.index[ this.index.length-1 ] ] : null;
+},
+
+mod : function( obj ){
+    LIB.functionID( obj.getIndex );
+    var set = this,
+        Mod = function(){ this.ev = {i:&quot;Mod events&quot;}; },
+        mod = new Mod();
+
+    Mod.prototype = set;
+
+    mod.name  = obj.name +&quot;:&quot;+ obj.getIndex.id;
+    mod.mvcid = this.mvcid + mvcModeDelim + mod.name;
+    mod.id    = this.id    + mvcModeDelim + mod.name;
+    mod._fire_index = 0;
+
+    mod.propset = function( propset ){
+
+        mod.prop = function ( id ) {
+            if (id in propset) {
+                return mvcStorage.apply(this,[id,_mvc.prop]).get(arguments); &#x2F;&#x2F; todo: arguments
+            } else {
+                return set.prop.apply(set,arguments);
+            }
+        };
+
+        for (var p in propset) {
+            mod.prop(p, propset[p] );
+        }
+    };
+
+    var indexUpdater = function(e,id){
+        var new_index = obj.getIndex(),
+            old_index = mod.index;
+
+        &#x2F;&#x2F;mvc.log(&quot;indexUpdater&quot;,e.type,mod.id,new_index.length);
+
+        if ( new_index.join() !== old_index.join() ) {
+            mod.index = new_index;
+
+            if ( mod._fire_index === 0 ) {
+                LIB.async(
+                    function(){
+                        $( mod ).trigger(&quot;mvc:index&quot;, set.index.length );
+                        &#x2F;&#x2F;mvc.log(&quot;set._fire_index&quot;,set.id,set._fire_index);
+                        mod._fire_index = 0;
+                    }
+                );
+            }
+            mod._fire_index++;
+
+            if ( new_index.length !== old_index.length ) {
+                mod.prop( &quot;length&quot;, new_index.length );
+            }
+        }
+
+        if (e.type === &quot;mvc:objectUpdated&quot; &amp;&amp; ($.inArray( mod.obj(id).mvcid, new_index ) &gt; -1 ) ){
+            LIB.async(
+                function(){
+                    $( mod ).trigger( &quot;mvc:objectUpdated&quot;, id );
+                }
+            );
+        }
+
+    };
+
+    &#x2F;* todo: add getIndex change *&#x2F;
+    $(set).on(&quot;mvc:propUpdated:length mvc:objectUpdated mvc:index&quot;, indexUpdater);
+
+    $(mod).on(&quot;mvc:mod&quot;, indexUpdater);
+
+    this.mods[ mod.name ] = mod;
+
+    return mod;
+},
+
+filter : function( callback ){
+    var set = this,
+        modObj = {
+            name     : &quot;filter&quot;,
+            getIndex : function(){
+                return set.each(
+                    function(){
+                        return this.mvcid;
+                    },
+                    callback
+                );
+            }
+        },
+
+        mod = set.mod(modObj);
+
+        mod.index = modObj.getIndex();
+
+        mod.propset(
+          {&quot;length&quot;:mod.index.length}
+        );
+
+    return mod;
+},
+
+sort : function( param, _order ){
+    var set    = this,
+        modObj = {name: &quot;sort&quot;},
+        sorter,
+        mod,
+        order = _order ? &quot;DESC&quot; : &quot;ASC&quot;;
+
+        if (typeof param === &quot;function&quot;) {
+            sorter = param;
+        } else if(typeof param === &quot;string&quot;){
+            sorter = function( a, b ){
+                return ( a.prop(param) - b.prop(param) ) * (mod.prop(&quot;sort:order&quot;) === &quot;ASC&quot; ? 1 : -1);
+            };
+        }
+
+        modObj.getIndex = function(){
+            var index = set.index.slice(0);
+
+            index.sort(
+                function(a,b){
+                    return sorter.call( null, mvcGetByID(a), mvcGetByID(b) );
+                }
+            );
+
+            return mod.prop(&quot;sort:reversed&quot;) ? index.reverse() : index;
+        };
+
+        mod = set.mod(modObj);
+
+        mod.propset(
+            {&quot;sort:order&quot;:order}
+        );
+
+        mod.reverse = function(){
+            mod.prop(&quot;sort:order&quot;, mod.prop(&quot;sort:order&quot;) === &quot;ASC&quot; ? &quot;DESC&quot; : &quot;ASC&quot;);
+        };
+
+        mod.index = modObj.getIndex();
+
+        &#x2F;&#x2F; todo: перенести в set.mod ?
+        $(mod).on(
+            &quot;mvc:propUpdated:sort:order&quot;,
+            function(){
+                $(mod).trigger(&quot;mvc:mod&quot;);
+            }
+        );
+
+    return mod;
+},
+
+
+pager : function( _num ){&#x2F;&#x2F;, radius
+    var set    = this,
+        num    = parseInt( _num , 10 ) || false,
+        modObj = { name: &quot;pager&quot; },
+        mod;
+
+        if (!num) { throw &quot;mvcSet:pager - incorrect argument&quot;; }
+
+        modObj.getIndex = function(){
+            var length = set.prop(&quot;pager:total&quot;) || set.index.length;
+            mod.prop(&quot;pager:count&quot;, Math.ceil( length &#x2F; mod.prop(&quot;pager:num&quot;) ) );
+            if ( mod.prop(&quot;pager:page&quot;) &gt;= mod.prop(&quot;pager:count&quot;)  ) {
+                mod.prop(&quot;pager:page&quot;, 0 );
+            }
+            mod.prop(&quot;pager:hasnext&quot;, (mod.prop(&quot;pager:page&quot;)+1) &lt; mod.prop(&quot;pager:count&quot;) );
+            mod.prop(&quot;pager:hasprev&quot;,  mod.prop(&quot;pager:page&quot;) &gt; 0 );
+            return set.index.slice(
+                mod.prop(&quot;pager:page&quot;)*mod.prop(&quot;pager:num&quot;),
+                (mod.prop(&quot;pager:page&quot;)+1)*mod.prop(&quot;pager:num&quot;)
+            );
+        };
+
+        mod = set.mod(modObj);
+
+        mod.propset( &#x2F;&#x2F; todo: ?
+            {
+                &quot;pager:num&quot;     : num,
+                &quot;pager:page&quot;    : 0,
+                &quot;pager:count&quot;   : 0,
+                &quot;pager:hasnext&quot; : false,
+                &quot;pager:hasprev&quot; : false,
+                &quot;pager:keys&quot;    : false,
+                &quot;pager:visited&quot; : &quot;1&quot;
+            }
+        );
+
+
+        $(mod).on(
+            &quot;mvc:propUpdated:pager:page&quot;,
+            function(e,p){
+                var visited =  mod.prop(&quot;pager:visited&quot;).split(&quot;,&quot;);
+                &#x2F;&#x2F;mvc.log(&quot;visited&quot;,arguments);
+                visited[p.value] = 1;
+                mod.prop( &quot;pager:visited&quot;, visited.join(&quot;,&quot;) );
+                if ( set.prop(&quot;pager:total&quot;) ){
+                    LIB.async(
+                        function () {
+                            $(set).trigger(&quot;mvc:pager:need&quot;, p.value );
+                        }
+                    );
+                }
+                &#x2F;&#x2F;mvc.log(&quot;pager:visited&quot;,mod.prop(&quot;pager:visited&quot;));
+            }
+        );
+
+        $(mod).on(
+            &quot;mvc:propUpdated:pager:page mvc:propUpdated:pager:num mvc:propUpdated:pager:keys&quot;,
+            function(){
+                $(mod).trigger(&quot;mvc:mod&quot;);
+            }
+        );
+
+        mod.index = modObj.getIndex();
+        return mod;
+},
+
+
+&#x2F;*TODO : tree : function( param ){ },  *&#x2F;
+
+json : function( data , silence ){
+    var k, o;
+    this.loadflag = silence === true;
+
+    if ( $.isArray( data ) ) {
+        for ( k in data ){
+            o = data[k];
+            if ( &quot;id&quot; in o &amp;&amp; typeof o.id === &quot;string&quot;  &amp;&amp; $.trim(o.id).length &gt; 0 &amp;&amp; $.isPlainObject(o) ) {
+                this.obj( o.id ).json( o );
+            }
+        }
+
+    } else if ( $.isPlainObject( data ) ) {
+        for ( k in data ){
+            if ( $.trim(k).length &gt; 0 ) {
+                this.prop( k, data[ k ] );
+            }
+        }
+    }
+
+    delete this.loadflag;
+
+    return this;
+},
+
+del  : function( id ){
+
+    var _o = mvcGetByID( id );
+
+    if (_o !== mvc) {
+        return _o.parent().del( _o.id );
+    }
+
+    if ( _mvc.obj.has( this.mvcid, id ) ) {
+
+        &#x2F;&#x2F;mvc.log(&quot;---DELETE---&quot;,id);
+
+        this.obj(id).unblockAll();
+
+        var _id = _mvc.obj._mvcid(this.mvcid,id);
+
+        delete _mvc.obj.s[_id];
+
+        var index=[];
+
+        for ( var i=0; i&lt;this.index.length; ++i ){
+            if ( this.index[i] !== _id ) {
+                index.push( this.index[i] );
+            }
+        }
+
+        this.index = index;
+
+        &#x2F;&#x2F; delete props
+        for (var p in _mvc.prop.s){
+            if ( p.indexOf( id + mvcDelim + &quot;prop&quot; + mvcDelim ) !== -1 ) {
+                delete _mvc.prop.s[p];
+            }
+        }
+        $(this).trigger(
+            &quot;mvc:objectDeleted&quot;,
+            [{type:&quot;obj&quot;,id:id}]
+        );
+    }
+},
+
+empty: function(){
+    var index = this.index.slice(0);
+    for(var i in index){
+        this.del(
+            index[i]
+        );
+    }
+}
+
+};
+
+LIB.merge.call( mvcSet, mvcBlockable );
+
+
+
+
+window.i18n = window.i18n || {};
+
+var mvcView   = {
+
+type: &quot;view&quot;,
+
+init: function(){
+    mvcModulizer(this);
+    return true;
+},
+
+i18n: function( ){
+    var view_id = this.id,
+        defs = [],
+        i;
+
+    for ( i = 0; i &lt; arguments.length; i++ ) {
+        defs.push(
+            mvc.getI18N(
+                arguments[i]
+            )
+        );
+    }
+
+    return $.when
+            .apply( $, defs )
+            .fail (
+                function(){
+                    throw &quot;i18n for view[&quot; + view_id + &quot;] failed&quot;;
+                }
+            )
+            .promise();
+},
+
+template: function ( id ) {
+    return {
+        template: id,
+        id:       this.id
+    };
+},
+
+render: function ( blockID ) {
+    &#x2F;&#x2F;mvc.log(&quot;----RENDER---- &quot;, this.id, &quot; status=&quot;, this.prop(&quot;status&quot;) );
+    var block   = mvcGetByID( blockID ),
+        view    = this;
+
+    &#x2F;&#x2F;mvc.log(&quot;mvcView:render &quot; + block.id );
+    if (&quot;render&quot; in block) {
+
+        &#x2F;&#x2F;mvc.log(&quot;_v__p__rendering &quot; + block.id, block.parent().id, block.prop(&quot;rnrTimeout&quot;)   );
+
+        window.clearTimeout(
+            block.prop(&quot;rnrTimeout&quot;)
+        );
+
+        block.prop(
+            &quot;rnrTimeout&quot;,
+            window.setTimeout(
+                function() {
+                    block._render();
+                },
+                10 &#x2F;&#x2F; todo: config
+            )
+        );
+
+        return block.prop(&quot;rnrTimeout&quot;);
+    } else {
+        &#x2F;&#x2F;mvc.log(&quot;_v__i__rendering &quot; + block.id, block.parent().id );
+        block.render = function ( e, prop ) {
+            var block = mvcGetByID( blockID );
+            if ( prop in block.propbind ) {
+                &#x2F;&#x2F;mvc.log(&quot;_v__r__rendering &quot; + block.id, block.parent().id, &quot; event=&quot;, e.type, ( e.type == &quot;mvc:propUpdate&quot; ? prop : prop ) );
+                return view.render( blockID );
+            }
+            return true;
+        };
+
+        $( block.parent() ).on(
+            &quot;mvc:propUpdate&quot;,
+            block.render
+        );
+
+        block.unbindDataListener = function(){
+            var block = mvcGetByID( blockID );
+            $( block.parent() ).off(
+                &quot;mvc:propUpdate&quot;,
+                block.render
+            );
+        };
+
+        return view.render( blockID );
+    }
+    return true;
+},
+
+style: function (flag) {
+    if (flag) {
+        var view     = mvc.set(&quot;mvc-views&quot;).obj(this.id),
+            config   = mvc.obj(&quot;mvc-config&quot;).snapshot,
+            src      = view.prop(&quot;cssmd5&quot;)  ? ( config.cdn || &quot;&quot; ) + view.key + &quot;&#x2F;&quot; + view.id + &quot;.&quot; + view.prop(&quot;cssmd5&quot;) + &quot;.css&quot; : config[&quot;view-builder-path&quot;] + &quot;?template=&quot; + this.id + &quot;&amp;style=true&amp;_=&quot; + Math.random();
+            return LIB.load.style( src, (view.key ? view.key + &quot;:css&quot; : false ), view.prop(&quot;cssmd5&quot;) );
+    }
+    return true;
+},
+
+load: function () {
+    var view     = mvc.set(&quot;mvc-views&quot;).obj(this.id),
+        config   = mvc.obj(&quot;mvc-config&quot;).snapshot,
+        src;
+        view.key = false;
+    if ( view.prop(&quot;jsmd5&quot;) ) {
+        view.key   = &quot;&#x2F;&quot; + view.prop(&quot;path&quot;) + &quot;&#x2F;static&#x2F;views&#x2F;&quot; + view.id;
+        src   = ( config.cdn || &quot;&quot; ) + view.key + &quot;&#x2F;&quot; + view.id + &quot;.&quot; + view.prop(&quot;jsmd5&quot;) + &quot;.js&quot;;
+    } else {
+        src   = mvc.obj(&quot;mvc-config&quot;).prop(&quot;view-builder-path&quot;) + &quot;?template=&quot; + view.id + &quot;&amp;_=&quot; + Math.random();
+    }
+    return LIB.load.script( src, (view.key ? view.key+&quot;:js&quot; : false), view.prop(&quot;jsmd5&quot;) );
+},
+
+prop : function(id){
+    return mvcStorage.apply( this, [ id, _mvc.prop ] ).get( arguments ); &#x2F;&#x2F; todo: arguments
+}
+
+};
+
+
+
+var mvcSlotPrefix = &quot;slot-&quot;,
+    mvcSlotCounter = 0,
+
+mvcMakeSlot = (
+    function(){
+        return function( slot ) {
+            if ( &quot;jquery&quot; in slot ) {
+
+                var classes = ( slot.attr(&quot;class&quot;) ? slot.attr(&quot;class&quot;).split(&quot; &quot;) : &quot;&quot; ),
+                    isSlot = false, c, id;
+
+                for ( c = 0; c &lt; classes.length; c++ ) {
+                    if ( classes[c] &amp;&amp; classes[c].indexOf( mvcSlotPrefix ) !== -1 ) {
+                        isSlot = classes[c].substr (mvcSlotPrefix.length );
+                        break;
+                    }
+                }
+                if ( isSlot === false) {
+                    id = (mvcSlotCounter++)+&quot;&quot;;
+                    slot.addClass(mvcSlotPrefix + id);
+                } else{
+                    &#x2F;&#x2F;mvc.log(&quot;parseSlot &quot;, isSlot );
+                    id = isSlot;
+                }
+                return mvc.slot( id, slot[0].tagName );
+            }
+        };
+    }
+)(),
+
+mvcSlot   = {
+
+type  : &quot;slot&quot;,
+
+init  : function(){
+    this.blocks   = {};
+    this.mod      = null;
+    this[&quot;class&quot;] = &quot;&quot;;
+    this.callFlag = false;
+
+},
+
+unblock: function(){
+    &#x2F;&#x2F;mvc.log(&quot;_____s_UNBLOCK&quot;, slot.id );
+    for (var i in this.blocks) {
+        mvcGetByID( i ).unblock( this.blocks[ i ], true );
+        delete this.blocks[i];
+    }
+},
+
+
+render: function(){
+    var slot = this,
+        data = slot.parent().parent(),
+        res;
+
+    &#x2F;&#x2F;mvc.log(&quot;_____s_render_START &quot;+slot.mod+&quot; slot.id=&quot;, slot.id)
+    &#x2F;*
+
+    mvc.log(&quot;_____s_render_START \n        slot.id=&quot;, slot.id,
+        &quot;\n        slot.mod=&quot;, slot.mod,
+        &quot;\n        slot.blocks=&quot;, slot.blocks,
+        &quot;\n        data.id=&quot;, data.id
+        );
+    *&#x2F;
+    &#x2F;*function logSlot_COMPLETE (){
+
+
+        mvc.log(&quot;_____s_render_COMPLETE \n        slot.id=&quot;, slot.id,
+            &quot;\n        slot.blocks=&quot;, slot.blocks
+        );
+
+
+    }*&#x2F;
+
+    if ( slot.mod === &quot;call&quot; ) {
+        res = slot.renderCall(data);
+    } else if ( slot.mod === &quot;apply&quot; ) {
+        res = slot.renderApply(data);
+    } else {
+        res = slot.renderSlot(data);
+    }
+&#x2F;*
+    if (&quot;done&quot; in res) {
+        res.done(logSlot_COMPLETE);
+    } else {
+        logSlot_COMPLETE();
+    }
+*&#x2F;
+
+    return res;
+},
+
+get   : function(){ &#x2F;&#x2F; todo: arguments
+    if (1 in arguments[0]) {
+        this.tag = arguments[0][1] || &quot;div&quot;;
+    }
+    return this;
+},
+
+node : function ( $ctx ) {
+
+    var parent = this.parent(),
+        $parentNode,
+        className = mvcSlotPrefix + this.id,
+        res;
+
+    if ( parent &amp;&amp; ( $ctx || parent.node) ) {
+        $parentNode = ( $ctx ) ? $ctx : parent.node;
+        if ( $parentNode.hasClass( className ) ) {
+            res = $parentNode;
+        } else {
+            res = $parentNode.find(&quot;.&quot; + mvcSlotPrefix + this.id);
+        }
+    } else {
+        res = $(&quot;.&quot;+mvcSlotPrefix + this.id, HTML.body );
+    }
+    return res;
+},
+
+teleport  : function( $dest, $src ){
+
+    var slot = this,
+        $destSlot = this.node( $dest ),
+        $srcSlot  = this.node( $src  );
+
+
+    &#x2F;*
+        mvc.log(&quot;_____s_TELEPORT [&quot;+this.mod+&quot;]&quot;,this.id,
+            &quot;\n       $destSlot=&quot;,$destSlot,
+            &quot;\n       $srcSlot=&quot;,$srcSlot,
+            &quot;\n       slot.blocks=&quot;,slot.blocks
+        );
+    *&#x2F;
+    if ( this.mod === &quot;apply&quot; ) {
+        var setMap = {},
+            $point = $destSlot;
+
+        $( slot.parent().parent().index ).map(
+            function( i, mvcid ){
+                return setMap[mvcid] = true;
+            }
+        );
+
+        $( $srcSlot.nextAll() ).map(  &#x2F;&#x2F;todo: ?
+            function(i, item){
+                var data = $(item).data(&quot;mvc&quot;);
+
+                if ( data.data in setMap ) {
+                    $point = $( item ).detach().insertAfter( $point );
+                }
+
+                return true;
+            }
+        );
+
+    } else {
+        $destSlot.replaceWith( $srcSlot.detach() );
+    }
+},
+
+replace   : function( block, $html ){
+
+    &#x2F;*
+        mvc.log(&quot;_____s_render_REPLACE&quot;,
+                    &quot;\n        block.mvcid=&quot;, block.mvcid,
+                    &quot;\n        slot.id=&quot;, this.id,
+                    &quot;\n        block.node=&quot;, block.node,
+                    &quot;\n        $html=&quot;, $html
+                    );
+    *&#x2F;
+
+    $.map(
+        block.slots,
+        function( mvcid ){
+            return mvcGetByID( mvcid ) .teleport( $html, block.node );
+        }
+    );
+
+    block.node.replaceWith( $html );
+    block.node = $html;
+    mvcSlot.setData.call(
+        block,
+        $html,
+        this.callFlag
+    );
+},
+
+insert    : function( _block, $html ){
+    var slot  = this,
+        $slot,
+        block = mvcGetByID( _block.mvcid ),
+        data  = block.parent();
+
+    block.node = $html;
+    slot.blocks[data.mvcid] = block.mvcid;
+    &#x2F;*
+    mvc.log(&quot;_____s_render_INSERT&quot;, block.id ,
+                &quot;\n        slot.id=&quot;, this.id,
+                &quot;\n        $html=&quot;, $html
+    );
+    *&#x2F;
+    $slot = slot.node();
+    if ( slot.mod === &quot;apply&quot;  ) {
+        var $point = $slot,
+            index  = mvcGetByID( block.pBlockMVCID ).parent().index,
+            i,
+            curr,
+            prev;
+        if ( index.length &gt; 1) {
+            &#x2F;&#x2F;mvc.log(&quot;---insert &quot;, index);
+            for ( i=0; i&lt;index.length; i++ ) {
+                curr = index[i];
+                if ( curr === data.mvcid &amp;&amp; prev ) {
+                    &#x2F;&#x2F;mvc.log(&quot;---insert&quot;,  data.mvcid,&quot; after &quot;, prev );
+                    $point = mvcGetByID( slot.blocks[ prev ] ).node;
+                    break;
+                }
+                prev = curr;
+            }
+        }
+        &#x2F;&#x2F;mvc.log(&quot;insertAfter&quot;, $slot, $point, this.blocks);
+        $html.insertAfter( $point );
+    } else {
+        $slot.append( $html );
+    }
+    mvcSlot.setData.call( block, $html, this.callFlag );
+},
+
+setData: function( node, callFlag ){
+    &#x2F;&#x2F;mvc.log(&quot;setData&quot;,this,node);
+    node.data(&quot;mvc&quot;,
+        {
+        block : this.mvcid,
+        data  : this.parent().mvcid,
+        id    : this.parent().id,
+        callFlag : callFlag
+        }
+   );
+},
+
+renderSlot: function(  ){&#x2F;&#x2F; todo: ? unused( data )
+    &#x2F;*var slot = this,
+        i,
+        data,
+        block,
+        renders = [];*&#x2F;
+&#x2F;*
+    mvc.log(&quot;_____s__renderSlot&quot;,
+        &quot;\n        slot.id=&quot;, slot.id,
+        &quot;\n        slot.blocks=&quot;, slot.blocks,
+        &quot;\n        data.id=&quot;, data.id
+    );
+*&#x2F;
+
+&#x2F;*
+     for (i in slot.blocks) {
+        data  = mvcGetByID( i );
+        block = mvcGetByID( slot.blocks[ i ] );
+        view  = block._view();
+        template  = block._template();
+        block.unblock();
+        delete slot.blocks[i];
+        renders.push(
+          data.block(
+            view.template( template ),
+            slot
+          )
+        )
+    }
+*&#x2F;
+    return $.when.apply( null, [] ).promise();
+},
+
+renderCall: function( data ){ &#x2F;&#x2F; todo: nahern
+    return data.block(
+        mvc.view( this.view ).template( this.template ),
+        this
+    );
+},
+
+slotPosition: function(){
+    var res = { idByPos:[], posById:{} },
+        i=0,
+        dataID;
+    for ( dataID in this.blocks ) {
+        res.idByPos.push(dataID);
+        res.posById[dataID] = i++;
+    }
+    return res;
+},
+
+renderApply: function( data ){
+    var slot = this;
+    &#x2F;&#x2F;mvc.log(&quot;_____s__renderApply&quot;, slot.id, &quot; : &quot; , slot.view, slot.template );
+    if ( !(&quot;childApply&quot; in slot) ) {
+        slot.childApply = function( ) {
+            var c,
+                dataID,
+                actionsReplace  = [],
+                actionsInsert   = [],
+                actionsUnblock  = [],
+                slotPos         = slot.slotPosition(), &#x2F;&#x2F;todo: rename
+                newBlocks       = {},
+                dfd             = $.Deferred();
+            &#x2F;*
+                mvc.log(&quot;_____s__childApply&quot;,
+                    &quot;\n        slot.id=&quot;, slot.id,
+                    &quot;\n        slot.blocks=&quot;, slot.blocks,
+                    &quot;\n        data.index=&quot;, data.index,
+                    &quot;\n        slotPos=&quot;, slotPos
+                );
+            *&#x2F;
+
+            for ( c = 0; c &lt; data.index.length; c++ ) {
+                dataID = data.index[c];
+                newBlocks[dataID] = &quot;&quot;;
+                if ( dataID in slot.blocks ) {
+                    newBlocks[ dataID ] = slot.blocks[dataID];
+                    if ( slotPos.idByPos[c] !== dataID &amp;&amp; slotPos.posById[dataID] &lt; c) {
+                        actionsReplace.push(
+                            {
+                                dataID  : data.index[c],
+                                action  : &quot;replace&quot;,
+                                replace : slotPos.idByPos[c]
+                            }
+                        );
+                    }
+                } else {
+                    actionsInsert.push(
+                        {
+                            dataID: dataID,
+                            action: &quot;insert&quot;
+                        }
+                    );
+                }
+            }
+
+            for ( dataID in slot.blocks ) {
+                if ( ! ( dataID in newBlocks)) {
+                    actionsUnblock.push(
+                        {
+                            dataID: dataID,
+                            action  : &quot;unblock&quot;,
+                            blockID:slot.blocks[dataID]
+                        }
+                    );
+                }
+            }
+
+            &#x2F;*
+            mvc.log(&quot;_____s_childApply actions&quot;,
+                &quot;\n        slot.id=&quot;, slot.id,
+                &quot;\n        slotPos=&quot;, slotPos,
+                &quot;\n        actionsInsert=&quot;, actionsInsert,
+                &quot;\n        actionsReplace=&quot;, actionsReplace,
+                &quot;\n        actionsUnblock=&quot;, actionsUnblock
+            );
+            *&#x2F;
+
+            dfd = $.when.apply(
+                null,
+                $.map(
+                    ( actionsInsert.length ? actionsInsert : actionsReplace ).concat( actionsUnblock ) , &#x2F;&#x2F; todo: naming
+                    function( a ){ &#x2F;&#x2F; todo: naming a
+                        var data = mvcGetByID( a.dataID );
+                        if ( a.action ) {
+                            if ( a.action === &quot;insert&quot;) {
+                                var blockRes   = data.block( mvc.view( slot.view ).template( slot.template ), slot ); &#x2F;&#x2F; todo: static
+                                blockRes.after = a.after;
+                                newBlocks[data.mvcid] = blockRes.mvcid;
+                                return blockRes;
+                            } else if ( a.action === &quot;unblock&quot; ) {
+                                &#x2F;&#x2F;mvc.log(&quot;_____s__UNBLOCK&quot;,a);
+                                return data.unblock( a.blockID );
+                            } else if ( a.action === &quot;replace&quot;) {
+                                var firstBlockID   = slot.blocks[a.replace],
+                                    secondBlockID  = slot.blocks[a.dataID],
+                                    bFirst  = mvcGetByID( firstBlockID  ).node[0],
+                                    bSecond = mvcGetByID( secondBlockID ).node[0],
+                                    parentNode = bFirst.parentNode,
+                                    pF = parentNode.insertBefore( document.createTextNode(&quot;&quot;), bFirst),
+                                    pS = parentNode.insertBefore( document.createTextNode(&quot;&quot;), bSecond);
+
+                                &#x2F;&#x2F;mvc.log(&quot;REPLACE&quot;, a.replace,&quot;&lt;-&gt;&quot;,a.dataID);
+
+                                parentNode.replaceChild(bFirst,pS);
+                                parentNode.replaceChild(bSecond,pF);
+                                newBlocks[a.dataID]  = secondBlockID;
+                                newBlocks[a.replace] = firstBlockID;
+                            } else {
+                                &#x2F;&#x2F;mvc.log(&quot;_____s__APPLY &quot;,a);
+                                throw &quot;unknown action=&quot;+a.action;
+                            }
+                        }
+                        return false;
+                    }
+                )
+            );
+            &#x2F;&#x2F;mvc.log(&quot;NEWBLOCKS&quot;,newBlocks);
+            slot.blocks = newBlocks;
+            return dfd.promise();
+        };
+        $( data ).on(&quot;mvc:index&quot;, slot.childApply );
+        slot.childUnApply = function(){
+            $( data ).off(&quot;mvc:index&quot;, slot.childApply );
+        };
+    }
+    return slot.childApply( &quot;init&quot; );
+},
+
+toHtml : function(){
+    return &quot;&lt;&quot;+(this.tag || &quot;div&quot;)+&quot; class=\&quot;&quot; + mvcSlotPrefix + this.id + &quot; &quot; + this[&quot;class&quot;] + &quot;\&quot; &quot; + (this.mod === &quot;apply&quot;?&quot; style=\&quot;display:none;\&quot;&quot;:&quot;&quot;) +&quot;&#x2F;&gt;&quot;; &#x2F;&#x2F;
+}
+
+};
+
+
+
+function mvcGetByID ( mvcid ) {
+    if ( !mvcid || mvcid.indexOf(mvcDelim) === -1 ) { &#x2F;&#x2F;p.indexOf(id+mvcDelim+&quot;prop&quot;+mvcDelim) !== -1
+        return mvc;
+    }
+
+    if ( mvcid in _mvc.type_id ) {
+        if ( mvcid in _mvc[_mvc.type_id[mvcid]].s ) {
+            return _mvc[ _mvc.type_id[ mvcid ] ].s[ mvcid ];
+        }
+    }
+
+    var path = mvcid.split(mvcDelim),
+        obj  = mvc,
+        type,
+        id;
+
+    &#x2F;&#x2F;mvc.log(&quot;Neimenggu:mvcGetByID&quot;, mvcid);
+
+    path.shift();
+
+    while (path.length) {
+        type = path.shift();
+        id   = path.shift().split( mvcModeDelim );
+        &#x2F;&#x2F;mvc.log(&quot;Neimenggu:mvcGetByID &quot;, type, id);
+        obj  = ( obj[type] )( id.shift() );
+
+        if ( id.length ) {
+            obj = obj.mods[id[id.length-1]];
+        }
+    }
+    return obj;
+}
+
+
+
+function Neimenggu( constr ) {
+
+    this.s = {};
+
+    this.c = constr;
+
+    this.c.parent = function(){
+        return this.pid === &quot;mvc&quot; ? null : mvcGetByID( this.pid );
+    };
+
+    this._mvcid   = function( parentID, ID ){
+        return parentID + mvcDelim + this.c.type + mvcDelim + ID;
+    };
+
+}
+
+Neimenggu.prototype.has = function( parentID, ID ) {
+    return this._mvcid( parentID, ID ) in this.s;
+};
+
+Neimenggu.prototype.add = function( parentID, ID ) {
+
+    var _id = this._mvcid( parentID, ID );
+
+    _mvc.type_id[ _id ] = this.c.type;
+
+    this.s[_id] = $.extend( &#x2F;&#x2F; todo: ?
+        {
+            mvcid: _id,
+            ev:    { i:&quot;events&quot; }, &#x2F;&#x2F; todo: events
+            id:    ID,
+            pid:   parentID
+        },
+        this.c
+    );
+
+    if( &quot;init&quot; in this.c ){
+        this.s[_id].init();
+    }
+
+    return this.s[_id];
+};
+
+Neimenggu.prototype.get = function( parentID, ID ){
+    return this.s[
+        this._mvcid(
+            parentID, ID
+        )
+    ];
+};
+
+
+
+function mvcStorage( ID, storage ){
+    try {
+        if (!ID) {
+            throw new Error(&quot;mvcStorage: empty ID -&quot; + this.type);
+        }
+    }
+    catch (e) {
+        mvc.log(&quot;mvcStorage: &quot;, e, this, arguments);
+    }
+
+    if( ! storage.has( this.mvcid, ID ) ){
+        $(this).trigger(
+            &quot;mvc:objectCreated&quot;,
+            storage.add(
+                this.mvcid,
+                ID
+            )
+        );
+    }
+    return storage.get(this.mvcid,ID);
+}
+
+
+
+&#x2F;&#x2F; собираем хранилище
+_mvc = mvc._mvc = &#x2F;* backdoor *&#x2F; {
+    prop  :   new Neimenggu( mvcProp   ),
+    module:   new Neimenggu( mvcModule ),
+    set   :   new Neimenggu( mvcSet    ),
+    slot  :   new Neimenggu( mvcSlot   ),
+    block :   new Neimenggu( mvcBlock  ),
+    obj   :   new Neimenggu( mvcObj    ),
+    view  :   new Neimenggu( mvcView   ),
+    type_id : {} &#x2F;&#x2F; кеш для быстрой адресации элементов хранилища по типу
+};
+
+
+&#x2F;&#x2F; собираем API
+mvc =  window.mvc = LIB.merge.call(
+    mvc,
+    {
+
+    obj     : function( id ){ return mvcStorage.apply(  this, [ id, _mvc.obj    ]).get( arguments ); },
+    set     : function( id ){ return mvcStorage.apply(  this, [ id, _mvc.set    ]).get( arguments ); },
+    module  : function( id ){ return mvcStorage.apply(  this, [ id, _mvc.module ]).get( arguments ); },
+    prop    : function( id ){ return mvcStorage.apply(  this, [ id, _mvc.prop   ]).get( arguments ); },
+    view    : function( id ){ return mvcStorage.apply(  this, [ id, _mvc.view   ]).get( arguments ); },
+    slot    : function( id ){ return mvcStorage.apply(  this, [ id, _mvc.slot   ]).get( arguments ); },
+
+    &#x2F;&#x2F; хелпер для подгрузки модулей
+    load    : function(list){
+        for( var m in list ) {
+            if ( list[m] &amp;&amp; (m-1) &gt;= -1 ){
+                mvc.module( list[m] ).load();
+            }
+        }
+    },
+
+    &#x2F;&#x2F; хелпер для подгрузки данных mvc.data( {url:url} ).done( ... ).fail( ... )
+    data      : LIB.load.data,
+
+    &#x2F;&#x2F; хелпер для подгрузки локализации
+    getI18N   : LIB.load.i18n,
+
+    &#x2F;&#x2F; хелпер для подгрузки скриптов
+    getScript : LIB.load.script,
+
+    &#x2F;&#x2F; хелпер для внешней адресации по внутреннему mvcid
+    getByID   : mvcGetByID,
+
+    &#x2F;&#x2F; todo
+    &#x2F;*logger    : {
+
+        cache: [],
+
+        empty: function(){
+            mvc.logs.cache = [];
+        },
+
+        flush: function(){
+            $(
+                mvc
+            ).trigger(
+                &quot;mvc:logs&quot;
+            );
+
+        }
+    },*&#x2F;
+    &#x2F;&#x2F; хелпер для логирования
+    log       : function (){
+        try {
+            if( mvc.obj(&quot;mvc-config&quot;).prop(&quot;logger&quot;) ) {
+                mvc.logs.cache.push( arguments );
+                window.console.log.apply( window.console, arguments );
+            }
+        } catch ( e ) {
+            return false;
+        }
+    }
+
+});
+
+&#x2F;&#x2F; alias
+mvc.map = mvc.set;
+
+
+
+&#x2F;**
+
+**&#x2F;
+mvc.obj(&quot;mvc-config&quot;).json(
+    {
+        &quot;view-builder-path&quot; : &quot;&#x2F;mvc&#x2F;tools&#x2F;mvc.view.xml&quot;,
+        &quot;module-timeout-ms&quot; : 5000,
+        &quot;view-timeout-ms&quot;   : 5000,
+        &quot;logger&quot;            : true
+    }
+);
+
+&#x2F;&#x2F; alias
+mvc.map = mvc.set;
+
+
+
+return mvc;
+
+}
+) ( jQuery, window, document );
+
+
+
+
+    </pre>
+</div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="..&#x2F;assets/vendor/prettify/prettify-min.js"></script>
+<script>prettyPrint();</script>
+<script src="..&#x2F;assets/js/yui-prettify.js"></script>
+<script src="..&#x2F;assets/../api.js"></script>
+<script src="..&#x2F;assets/js/api-filter.js"></script>
+<script src="..&#x2F;assets/js/api-list.js"></script>
+<script src="..&#x2F;assets/js/api-search.js"></script>
+<script src="..&#x2F;assets/js/apidocs.js"></script>
+</body>
+</html>

@@ -1,0 +1,2404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: mbc.0.1.0.js</title>
+    
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+    
+    <h1 class="page-title">Source: mbc.0.1.0.js</h1>
+    
+    
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source"><code>/**
+Provides window.mbc - global storage for models, modules and views
+
+@copyright Bogdan Maetchkin 2013-1-28
+@version 0.1.0
+@module mbc
+**/
+
+
+(
+
+function( $, window, document ){
+
+    "use strict";
+// болванка для глобального объекта mvc
+var mvc = {
+        mvcid: "mvc",
+        ev: {i:"events"},
+        dfd_cache : {}
+    },
+    _mvc,
+    mvcDelim = "~",
+    mvcModeDelim = "::";
+
+
+
+/*
+   Autorouting
+
+    &lt;elem>
+       &lt;mvc:action event="click" route="parent|data|set">actionName&lt;/mvc:action>
+    &lt;/elem>
+ */
+
+$.fn.mvc = function MBConstructor () {
+
+    if ( mvc in this ){
+        return this.mvc;
+    }
+
+    else if ( this instanceof MBConstructor ){
+        return this;
+    }
+
+    else {
+        return new MBConstructor( arguments );
+    }
+
+};
+
+(function($,document){
+var events = "", e,
+    actionPrefix = "mvc-action-", // todo: config
+    getTarget = function( action, data, block ){
+        var target;
+        switch ( action.route ) {
+            case "parent": target = mvcGetByID(block.pBlockMVCID);  break;
+            case "set"   : target = mvcGetByID(data.data).parent(); break;
+            case "obj"   : target = mvcGetByID(data.data);          break;
+            default      : target = block;
+        }
+        return target;
+    },
+    getData   = function( node ){
+        var n = node;
+        while ( !$(n).data("mvc") ) { //hasData returns true in ie
+            n = ($(n).parent())[0] ;
+        }
+        return $(n).data("mvc");
+    },
+    getAction = function( etype, elem ){
+        var _classes = elem.className.split(" "),
+            _class,
+            _c,
+            start  = actionPrefix + etype + "-",
+            a;
+        for (_c in _classes) {
+            _class = _classes[_c];
+            if ( _class.indexOf(start) !== -1 ) {
+                a = _class.substring( start.length, _class.length ).split(":");
+                return { name:a[0], route:a[2]||false };
+            }
+        }
+        return false;
+    };
+
+
+for (e in $.attrFn){events += e+" ";}
+
+$(document).on(
+    events,
+
+    "*[class*=\""+actionPrefix+"\"]",
+    function( event ){
+        var elem = this,
+            action  = getAction( event.type, elem ),
+            data, block, target, mvcEvent;
+
+        //mvc.log(" event=", event);
+
+        if ( action ) {
+            data  = getData( elem );
+            block = mvcGetByID(data.block);
+            //mvc.log("action=", action, " data=", data, " block=", block);
+            LIB.async(
+                function () {
+                    if ( action.name in block ) {
+                        block[action.name](e);
+                    } else {
+                        //mvc.log("------",elem);
+                        data.elem = elem;
+                        mvcEvent  = actionPrefix.replace(/\-/g,":") + action.name;
+                        target    = getTarget( action, data, block );
+                        $( target ).trigger( mvcEvent , data);
+                        //mvc.log("-- * ", mvcEvent, target.mvcid, data );
+
+                        // callFlag bubbling
+                        var callFlag = data.callFlag, nd;
+                        if ( callFlag ) {
+                            while ( callFlag ) {
+                                target = mvcGetByID( target.pBlockMVCID );
+                                nd = $(target.node).data("mvc");
+                                callFlag = (nd && nd.callFlag===true);
+                                $(target).trigger(mvcEvent, data);
+                            }
+
+                        }
+                    }
+                }
+            );
+        }
+        return false;
+    }
+);
+
+
+})
+($,document);
+
+
+/*
+    event wrappers for mvc objects (jQuery 1.7.0)
+
+
+    todo: args processor
+
+this.map(
+
+return is mvc
+
+)
+
+
+*/
+
+/*
+todo
+
+$("/set");
+$("/set/obj");
+$("/set/obj/prop").listen( function (event, data){  } );
+$("/set/*[prop-id]");
+$("/set/*[prop-id='value']");
+
+*/
+
+
+var handlerWrapper = function( origHandler, mvcid ){
+    var ctx = mvcGetByID( mvcid );
+    return function(){
+        return origHandler.apply( ctx, arguments );
+    };
+};
+
+
+$.fn.on = (
+    function( $on, handlerWrapper ) {
+        return function( ){
+
+            var args = ([]).slice.call(arguments,0), mvcid;
+            
+            if ( this.length === 1 && "mvcid" in this[0] && "ev" in this[0] ) {
+                mvcid   = this[0].mvcid;
+                this[0] = this[0].ev;
+                for (var a = 0, origHandler; a &lt; args.length; a++ ){
+                    if( $.isFunction( args[a] ) ){
+                        origHandler = args[a];
+                        args[a] = handlerWrapper( origHandler, mvcid );
+                    }
+                }
+            }
+            return $on.apply(this,args);
+        };
+    }
+
+)
+($.fn.on, handlerWrapper );
+
+$.fn.off = (
+    function( off ){
+        return function(){
+            var first = this[0] || null;
+            if (first && ("mvcid" in first) ) {
+                this[0] = mvcGetByID( first.mvcid ).ev;
+                //mvc.log("OFF ", first.mvcid );
+            }
+            return off.apply(this,arguments);
+        };
+    }
+)
+($.fn.off);
+
+$.fn.trigger = (
+    function( trigger ){
+        return function(){
+            var first = this[0] || null; // todo: function replaceMvcObjsIn$handlers(){}
+            if (first && ("mvcid" in first)) {
+                this[0] = mvcGetByID( first.mvcid ).ev;
+            }
+            return trigger.apply(this, arguments);
+        };
+    }
+)
+($.fn.trigger);
+
+
+
+var HTML = {
+    head:document.getElementsByTagName("head").item(0),
+    body:document.body
+};
+
+var LIB = (
+
+  function( w, mvc ){
+
+    var lib = {},
+
+        resolved = $.Deferred().resolve().promise();
+
+
+    // обертка для асинхронного вызова
+    lib.async = function(cb){
+        return window.setTimeout(cb,4);
+    };
+
+    // копирование свойств в контекст
+    lib.merge = function(src){
+        var m;
+        for (m in src){
+            this[m] = src[m];
+        }
+        return this;
+    };
+
+    // присвоение функции уникального идентификатора,
+    // возвращает функцию по идентификатору
+    var funcsArr   = {},
+        funcsCount = 0;
+
+    lib.functionID = function( func ){
+        if ( typeof func === "function" ) {
+            if ( "id" in func ) {
+                return func;
+            }else{
+                func.id = funcsCount++;
+                funcsArr[func.id] = func;
+                return func;
+            }
+        } else if (typeof func === "string" && func in funcsArr){
+            return funcsArr[func];
+        }
+        throw "LIB.functionID: incorrect argument type " + (typeof func);
+    };
+
+    // Асинхронная загрузка статики из localStorage
+    var ls = "localStorage",
+        lsCache = {},
+        mvcCachePrefix = "mvc.cache:";
+
+    lib.ls = ls = (ls in w) ?
+                    (
+                    function( ls ){
+                        try {
+
+                            var uid = new Date(), _uid;
+                            ls.setItem(uid,uid);
+                            _uid = ls.getItem(uid);
+                            ls.removeItem(uid);
+                            return uid === _uid ? ls : false;
+
+                        } catch( errorLs ) {
+                            try {
+                                ls.clear();
+                            } catch ( errorLsClear ) {
+                                // enjoy the silence, bro
+                            }
+                            return false;
+                        }
+                    }
+                    )
+                    (
+                        w[ls]
+                    )
+
+                :
+                    false;
+
+    if ( ls !== false ){
+        $( mvc ).on(
+            "mvc:resources",
+            function(){
+                try {
+                    for (var k in ls){
+                        if ( k.indexOf( mvcCachePrefix ) === 0 ) {
+                            lsCache[ k ] = ls.getItem( k );
+                        }
+                    }
+                } catch ( errorLsCache ) {
+                    lsCache = false;
+                }
+                //console.log( "lsCache",lsCache );
+            }
+        );
+    }
+
+    // вытаскиваем код аяксом
+    var loadStaticAsync = function ( src ) {
+        return $.ajax(
+                    {
+                        url:      src,
+                        dataType: "text"
+                    }
+                )
+                .fail(
+                    function(){
+                        throw "mvc.lib.loadStaticAsync " + src + " failed";
+                    }
+                )
+                .promise();
+    };
+
+    // на каждый кусок кода вешаем Deferred
+    var evalCode = function (mkey, loader, code ){
+            mvc.dfd_cache[mkey] = $.Deferred();
+            lib.async(
+                function(){
+                    loader( code, mkey );
+                }
+            );
+            return mvc.dfd_cache[mkey].promise();
+    };
+
+    var loadStatic = function ( loader ) {
+        return function(src, key, sum){
+            var mkey,
+                msum,
+                _msum = false,
+                code = false;
+
+            if ( ls && sum) {
+                mkey  = key ? mvcCachePrefix + key : false;
+                msum  = sum ? mvcCachePrefix + sum : false;
+
+                try {
+                    _msum = lsCache[mkey];
+                    if ( _msum === msum ) {
+                        code = lsCache[msum];
+                    }
+                }
+                catch ( errorLsCacheAccess ) {
+
+                }
+
+
+                if ( code !== false && _msum !== false ) {
+                    try {
+                        return evalCode(mkey, loader, code );
+                    }
+                    catch ( errorEvalCode ) {
+                        return false;
+                    }
+
+
+                    /* TODO:  https://github.com/doochik/SafeLS https://github.com/marcuswestin/store.js */
+
+                } else {
+
+                    try {
+                        ls.removeItem( mkey );
+                        ls.removeItem( _msum );
+                    }
+                    catch ( errorLsCacheRemove ) {
+
+                    }
+
+                    var process = $.Deferred();
+
+                    loadStaticAsync( src )
+                        .done(
+                            function( data ) {
+                                try {
+                                    ls.setItem(mkey, msum);
+                                    ls.setItem(msum, data);
+                                }
+                                catch ( errorLsCacheSetItem ) {
+
+                                }
+                                evalCode(mkey, loader, data )
+                                    .done(
+                                        function(){
+                                            process.resolve();//mvc.log("1 evalCode done",src);
+                                        }
+                                    )
+                                    .fail(
+                                        function(){
+                                            process.reject();//mvc.log("1 evalCode fail",src);
+                                        }
+                                    );
+                            }
+                    );
+
+                    return process.promise();
+                }
+            } else {
+                return loadStaticAsync( src ).done( loader );
+            }
+        };
+    };
+
+    // кроссбраузерная загрузка кода
+    lib.load = {
+        script : loadStatic(
+            function( _code, _mkey ){/* mvc.log("prnum",""+mkey+"",mvc.dfd_cache[""+ mkey +""].isResolved());*/
+                var mkey = _mkey.indexOf( mvcCachePrefix ) !== -1 ? _mkey : false,
+                    code = _code + (mkey ? ";mvc.dfd_cache[\""+ mkey +"\"].resolve();" : "");
+
+                try {
+                    if ( $.browser.msie ) {
+                        window.execScript( code );
+                    } else if ( $.browser.opera ) {
+                        eval.call( w, code );
+                    } else {
+                        var script = document.createElement("script");
+                            script.setAttribute("type", "text/javascript");
+                            script.setAttribute("charset", "utf-8");
+                            script.innerHTML = code;
+                            HTML.head.insertBefore(script, HTML.head.firstChild);
+                    }
+                } catch (e) {
+                    if (mkey) {
+                        mvc.dfd_cache[mkey].reject();
+                    } else {
+                        mvc.log("Exeption:lib.load.script ",e);
+                    }
+                }
+            }
+        ),
+        style : loadStatic(
+            function( code, _mkey ){
+                var mkey = _mkey.indexOf(mvcCachePrefix) !== -1 ? _mkey : false,
+                    style = document.createElement("style");
+                HTML.head.appendChild(style);
+                if ( style.styleSheet ) { // IE
+                    style.styleSheet.cssText = code;
+                } else {
+                    style.appendChild( document.createTextNode(code) );
+                }
+                if (mkey) {
+                    mvc.dfd_cache[mkey].resolve();
+                }
+            }
+        ),
+        i18n : function( keyset, _project ){ // todo: project, build without i18n
+            var project = _project || mvc.obj("mvc-config").prop("project"),
+                i18n_id = project + "." + keyset,
+                d_ks    = mvc.set("mvc-i18n").obj(i18n_id),
+                md5     = d_ks.prop("md5"),
+                load    = d_ks.prop("load"),
+                config  = mvc.obj("mvc-config").snapshot,
+                lang    = config.lang || "ru",
+                cdn     = config.cdn  || "";
+
+            return load === true ? resolved : lib.load.script.apply(
+                    window,
+                    md5 ? [ cdn + "/_c/i18n/"+lang+"/"+i18n_id+"."+md5+".js", "i18n/"+lang+"/"+project+"/"+keyset , md5 ]
+                        : [ "/i18n/"+lang+"/"+i18n_id+".js?_="+Math.random() ]
+                )
+                .done(
+                    function(){
+                        //mvc.log("mvc-i18n done",i18n_id);
+                        d_ks.prop("load",true);
+                    }
+                )
+                .promise();
+        }
+    };
+
+
+    // обёртка для загрузки данных аяксом
+    var mvcDataSignCounter = 0;
+
+    lib.load.data = function( options ){
+        var dfd = $.Deferred(),
+            sign = mvcDataSignCounter++,
+            sk   = (mvc.obj("mvc-config").prop("use-sk") === true ? mvc.obj("user").prop("sk") : false) ,
+            ajax;
+
+
+        options.dataType = "script";
+
+        options.cache    = options.cache || false;
+
+        if (options.type === "POST") {
+            options.data.mvcDataLoadSignature = sign;
+            if (sk) {
+                options.data.sk = sk;
+            }
+        } else {
+            options.url += (options.url.indexOf("?") === -1 ? "?" : "&") + "mvcDataLoadSignature="+sign +(sk?"&sk="+sk:"");
+        }
+
+        ajax = $.ajax( options )
+                .fail(
+                    function(){
+                        dfd.rejectWith(ajax);
+                    }
+                );
+
+        $( mvc ).one(
+            "mvc:dataLoad:"+sign,
+            function(){
+                dfd.resolveWith(ajax);
+            }
+        );
+        // mvc.log("dfd",options,dfd);
+        return dfd.promise();
+    };
+
+    return lib;
+
+})
+(window,mvc);
+
+
+
+var mvcModulizer = function ( module ) {
+
+    var moduleLoad  = ("load" in module) ? module.load : null,
+        moduleTimer = null,
+        moduleInit  = null;
+
+    var dfd = $.Deferred();
+    // debug
+    dfd.done(
+        function () {
+        //mvc.log("module ready",this);
+        }
+    );
+
+    dfd.fail(
+        function () {
+            mvc.log("module "+this.type+":"+this.id+" load failed m-s="+module.prop("status"));
+            module.prop("status", "error");
+        }
+    );
+
+    var resolve = function () {
+        return dfd.resolveWith( module );
+    };
+
+    var reject = function () {
+        return dfd.rejectWith( module );
+    };
+
+    $( module )
+        .on(
+            "mvc:propUpdated:status",
+            function () {
+                if ( module.prop("status") === "ready" ) {
+                    return resolve();
+                } else if (module.prop("status") === "error") {
+                    return reject();
+                }
+            }
+        );
+
+    module.cast = function ( method ) {
+
+        if ( !arguments.length ) { // todo:  arguments
+            throw "mvc.module.cast: no arguments";
+        }
+
+        var cast     = $.Deferred(),
+            rejecter = function () {
+                return cast.rejectWith( module );
+            },
+            args     = ([]).slice.call(arguments,1),
+            cast_method  = function(){
+                            if (typeof method === "string") {
+                                if (!(method in module)) {
+                                    throw "mvc.module.cast: method["+method+"] not defined in module["+module.id+"]";
+                                }
+                            } else if(typeof method === "function"){
+                                return method;
+                            } else {
+                                throw "mvc.module.cast: incorrect method argument";
+                            }
+                            return module[method];
+                        };
+
+            //mvc.log("module.cast method=",method," args=",args);
+
+            LIB.async(
+                function () {
+                    module
+                        .load()
+                        .done(
+                            function(){
+                                var res = cast_method().apply(module, args);
+                                if ( res instanceof Object && "promise" in res ) {
+                                    res.done(
+                                        function(){
+                                            cast.resolveWith(this, arguments);
+                                        }
+                                    ).fail(
+                                        rejecter
+                                    );
+                                    cast.pipe( res );
+                                } else {
+                                    cast.resolveWith(module, [res]);
+                                }
+                            }
+                        )
+                        .fail(
+                            rejecter
+                        );
+                }
+            );
+
+        return cast.promise();
+    };
+
+
+
+
+    module.load = function () {
+        if (moduleTimer === null) {
+            moduleInit  = null;
+            moduleTimer = window.setTimeout(
+                function () {
+                    if ( moduleTimer ) {
+                        throw "moduleTimer " + module.id;
+                    }
+                },
+                mvc.obj("mvc-config").prop( module.type + "-timeout-ms" )
+            );
+
+            moduleLoad
+                .call( module )
+                .fail( reject );
+
+        }
+        //mvc.log("load ",module.type," ",module.id);
+        return dfd.promise();
+    };
+
+    module.get = function (  ) { // todo: arguments
+        
+        var arg = 1 in arguments[0] ? arguments[0][1] : null;
+
+        if ( arg ) {
+
+            /*console.log ("module.get( arg )", arg);*/
+
+            if ( moduleTimer ) {
+                window.clearTimeout( moduleTimer );
+            }
+
+            LIB.merge.call( module, arg );
+
+            var initRes = ("init" in module ? module.init() : true);
+
+            //mvc.log("initRes", module, initRes);
+
+            if ( initRes === true) {
+                resolve();
+            } else if(initRes === false || initRes === void(0) ){
+
+               module.initRes = initRes;
+
+            } else if("done" in initRes){
+                initRes
+                    .done( resolve )
+                    .fail( reject  );
+            }
+        }
+        return module;
+    };
+
+    return module;
+};
+
+
+
+/*
+Блоковый API для data-объектов
+*/
+var mvcBlockable = {
+
+/*
+метод создания блока
+view - объект типа mvc.view
+slot - место, куда вставить результат. Либо $( selector ), либо mvc.slot внутри блока
+возвращает mvc.block с $.promise
+
+пример
+
+mvc.set("items")
+    .block( mvc.view("list"), $("#container") )
+    .done(
+            function(){
+                $( this ).on(
+                    "mvc:action:actionName",
+                    function(){
+                        // action callback
+                    }
+                );
+            }
+         );
+*/
+    block : function( view, _slot ){
+
+        var template, slot, blockID;
+
+        if ( arguments.length === 2 ) {
+            template = ( (view && ("mvcid" in view) ) ? "default": view.template ),
+                slot     = ("mvcid" in _slot && _slot.type === "slot") ? _slot : mvcMakeSlot( _slot ),
+                blockID  = view.id +":"+ template +":"+ slot.id;
+
+            //mvc.log("BLOCK ", this.id, blockID);
+                this.unblock( this.mvcid+mvcDelim+blockID );
+
+
+
+            return mvcStorage.apply( this, [blockID, _mvc.block  ]).get(arguments, slot.pid ); // todo arguments
+        } else if ( arguments.length === 1 ) { // ?
+
+            //mvc.log("GET BLOCK", blockID);
+            return mvcStorage.apply( this, [ arguments[0], _mvc.block  ] );
+        }
+
+        throw "mvc.block - incorrect arguments";
+    },
+
+    unblock : function( blockID ){
+        if ( blockID && blockID in _mvc.block.s ) {
+            //mvc.log("UNBLOCK ", blockID);
+            return _mvc.block.s[ blockID ].unblock( true );
+        }
+        return false;
+    },
+
+    unblockAll : function(){
+        //mvc.log("UNBLOCK-ALL ", this.id);
+        for (var b in _mvc.block.s ) {
+            if ( _mvc.block.s[b].pid === this.mvcid ) {
+
+                this.unblock(
+                    _mvc.block.s[b].mvcid
+                );
+            }
+        }
+        return this;
+    }
+};
+
+
+
+var mvcProp   = {
+
+    type  : "prop",
+
+    value : null,
+
+    toString:function(){
+        return this.value;
+    },
+
+    get  : function(){ // getter todo arguments
+        //mvc.log("mvcProp get", arguments);
+        if (0 in arguments && 1 in arguments[0] && arguments[0][1] !== this.value) {
+            var prop   = this,
+                old    = prop.value,
+                obj    = this.parent() || mvc;
+
+            prop.value = arguments[0][1];
+
+            ///console.log ( prop );
+
+            if (2 in arguments[0]) {
+                arguments[0][2][this.id] = arguments[0][1];
+                arguments[0][2].length++;
+            }
+
+            if ( !("snapshot" in obj)) {
+                obj.snapshot = {};
+            }
+            obj.snapshot[prop.id] = prop.value;
+
+            $(obj).trigger("mvc:propUpdate", [prop.id] );
+            $(obj).trigger("mvc:propUpdated:"+prop.id,[prop,old]);
+
+
+            //mvc.log("------------mvc:propUpdated:"+prop.id," ",this.pid,this.parent() );
+
+
+        }
+        return this.value;
+    }
+
+};
+
+
+
+var mvcModule = {
+
+    type: "module",
+
+    init: function () {
+        mvcModulizer( this );
+        return true;
+    },
+
+    load: function () { // todo: mv path to config
+        var module  = mvc.set("mvc-modules").obj( this.id ),
+            sum     = module.prop("jsmd5"),
+            config  = mvc.obj("mvc-config").snapshot,
+            dynpath = config["dynamic-path"] || "",
+            mpath   = sum ? "/" + module.prop("path") + "/static/modules/" : dynpath + "/mvc/modules/",
+            key     = mpath + module.id,
+            src     = key   + (sum ? "." + sum + ".js" : ".js?_=" + Math.random());
+            src     = config.cdn ? config.cdn + src : src;
+        return LIB.load.script( src, key, sum );
+    },
+
+    prop: function ( id, value ) {
+        value = value ? value : null;
+        return mvcStorage.apply(this, [id, _mvc.prop]).get(arguments); // todo: arguments
+    }
+
+};
+
+
+
+var mvcBlock = {
+    type : "block",
+
+    init : function(){
+        this.slots       = [];
+        this.propbind    = {};
+        this.pBlockMVCID = null;
+
+        $(this).on(
+            "mvc:objectCreated",
+            function (e,obj) {
+                if (obj.type === "slot") {
+                    //mvc.log("mvcBlock mvc:objectCreated slot",this,arguments);
+                    this.slots.push(obj.mvcid);
+                }
+          }
+        );
+    },
+
+    done   : function() {
+        return this.rendering.done.apply(this,arguments);
+    },
+    fail   : function() {
+        return this.rendering.fail.apply(this,arguments);
+    },
+
+    prop   : function(id) {
+        return mvcStorage.apply(this,[id,_mvc.prop]).get(arguments);
+    },
+
+    unblock : function( flag ){
+        var block       = this;
+
+        //mvc.log("___b_UNBLOCK\n      block.mvcid=", block.mvcid ,"\n      block.parent().id=", block.parent().id);
+
+        for (var s in block.slots){
+            _mvc.slot.s[ block.slots[s] ].unblock();
+            delete _mvc.slot.s[ block.slots[s] ];
+        }
+
+        $( block ).off();
+
+        if (flag && block.pBlockMVCID) {
+            delete block._slot().blocks[block.pid];
+        }
+        if ("unbindDataListener" in block) {
+            try {
+                block.unbindDataListener();
+                block.node.remove();
+            } catch (e) {
+                //mvc.log("remove ex:block.id", block.id);
+                //mvc.log("remove ex:block", block);
+                //mvc.log("remove ex:e", e);
+            }
+        }
+
+        for (var p in _mvc.prop.s){
+            if ( p.indexOf(block.mvcid+mvcDelim+"prop"+mvcDelim) !== -1 ) {
+                _mvc.prop.s[p] = null;
+                delete _mvc.prop.s[p];
+            }
+        }
+
+        _mvc.block.s[block.mvcid]=null;
+        delete _mvc.block.s[block.mvcid];
+        return true;
+    },
+
+    applyTemplates: function( arg ){
+        arg.template = arg.name;
+        arg.id       = "apply-" + arg.view + "-" + arg.template + "-" + this.parent().id.replace( /:/gi,"_"); //(mvcSlotCounter++);
+        return this.slot(arg);
+    },
+
+    callTemplate: function( arg ){
+        arg.template = arg.name;
+        arg.callFlag = true;
+        arg.id       = "call-" + arg.view + "-" + arg.template + "-" + this.parent().id.replace( /:/gi,"_"); //+ "-" + (mvcSlotCounter++);
+        return this.slot(arg);
+    },
+
+    slot : function( arg ){
+        var obj = (typeof arg === "string") ? {id:arg,tag:"div"} : arg,
+            slot = mvcStorage.apply(this, [ obj.id, _mvc.slot ]);
+        return LIB.merge.call(slot,obj);
+    },
+
+    getter : function(getter){
+        var view = this._view();
+        if ("block_methods" in view && getter in view.block_methods) {
+            var args = [];
+            for (var i=1; i&lt;=arguments.length; i++){
+                if (arguments[i]!==undefined) {
+                    this.propbind[ arguments[i] ] = true;
+                    args.push(
+                        this.parent().prop( arguments[i] )
+                    );
+                }
+            }
+            return view.block_methods[getter].apply(this,args);
+        } else {
+            //mvc.log("getter",view);
+            return "";
+        }
+    },
+
+    initJS: function(){
+        var template = this._template(),
+            initMethod = template && template !== "default" ? "initBlock_"+template : "initBlock"; // todo: mv to {_:f(){},init:f(){}}
+        if ( initMethod in this._view() ) {
+            return this._view()[initMethod](this);
+        }
+    },
+
+    data : function(src,prop){
+        switch (src) {
+                case "prop":
+                    this.propbind[prop] = true;
+                    var val = this.parent().prop(prop);
+                    return val !== null ? val : "";
+                case "b-prop":
+                    return (prop in this.parent() ? this.parent()[prop] : "" );
+                case "getter":
+                    return this.getter.apply(this, prop.split(","));
+                /*case "i18n":
+                    var k = prop.split(",");
+                    return this.i18n(k[0],k[1]);*/
+                case "param":
+                    //mvc.log("block:data ",this._slot());
+                    return ( ("params" in this._slot()) && (prop in this._slot().params) ) ? this._slot().params[prop] : "";
+                default:
+                    throw   "block.data undefined method " + src;
+            }
+        return "";
+    },
+
+    i18n: function(keyset,key){
+        var src = window.i18n[ mvc.obj("mvc-config").prop("project") ][ keyset ];
+        return (src && key in src)?(src[key])():(mvc.obj("mvc-config").prop("logger")?"--i18n."+keyset+"."+key+"--":"");
+    },
+
+    _render: function(){
+        var block    = this,
+            template = block._template(),
+            view     = block._view(),
+            slot     = block._slot(),
+            dfd      = block.rendering,
+            node     = block.node,
+            i18n     = window.i18n[ mvc.obj("mvc-config").prop("project") ];
+
+        //mvc.log("___b_render_START \n      data.id=", data.id,"\n      block.id=", block.mvcid);
+
+        if ( template in view.storage ) {
+
+            slot[ node ? "replace" : "insert"] ( block, $( view.storage[template]._.call( block, i18n ) ) );
+
+            $.when.apply(
+                null,
+                $.map(
+                    block.slots,
+                    function(mvcid){
+                        return mvcGetByID(mvcid).render();
+                    }
+                )
+            )
+            .done(
+                function(){
+                    block.initJS();
+                    //mvc.log("___b_render_COMPLETE \n      data.id=", data.id,"\n      block.id=", block.mvcid);
+                    dfd.resolveWith( block );
+                }
+            )
+            .fail(
+                dfd.reject
+            );
+
+        } else {
+            dfd.reject();
+            throw "no template " + template + " in view " + view.id;
+        }
+        return true;
+    },
+
+    _view  : function(){
+        return mvc.view( ( this.id.split(":") )[0] );
+    },
+
+    _template  : function(){
+        return (this.id.split(":"))[1];
+    },
+
+    _slot  : function(){
+        //mvc.log("_slot", this.pBlockMVCID,  this.id.split(":")); //!
+        if ( this.pBlockMVCID && this.pBlockMVCID !== "mvc" ) {
+            return mvcGetByID(this.pBlockMVCID).slot((this.id.split(":"))[2]);
+        } else {
+            return mvc.slot((this.id.split(":"))[2]);
+        }
+    },
+
+    get  : function(){ // todo: arguments
+
+        if ( arguments[0].length === 1 ) {
+            return this;
+        }
+
+        var block = this;
+
+        if ( !block.rendering ) {
+        //    throw "block already has rendering promise"
+        //} else {
+            block.rendering = $.Deferred();
+        }
+
+
+        //dfd   = $.Deferred(),
+
+        if (1 in arguments) {
+            block.pBlockMVCID = arguments[1];
+        }
+
+
+
+        LIB.async(
+            function() {
+                block
+                    ._view()
+                    .cast( "render", block.mvcid )
+                    .fail(
+                        function(){
+                            return block.rendering.rejectWith( block );
+                        }
+                    );
+            }
+        );
+
+        return $.extend(
+            true,
+            {
+                on : function(){
+                    $.fn.on.apply( $(block.ev), arguments );
+                    return this;
+                }
+            },
+            block,
+            block.rendering.promise()
+        );
+    }
+};
+
+
+
+var mvcObj    = {
+
+type : "obj",
+
+init: function(){
+    var obj = this,
+        ID  = obj.id,
+        p   = obj.parent();
+    obj.selectorID = "#"+ID.replace(/%/g,"\\%").replace(/:/g,"\\:");
+    $( obj ).on(
+        "mvc:propUpdate",
+        function(e,propid){
+            if (p && !("loadflag" in p)) {
+                var up = {};
+                up[propid] = obj.prop(propid);
+                //console.log("proxy mvc:objectUpdated from "+this.id+" to "+p.id);
+                $(p).trigger("mvc:objectUpdated", [ID,up] );
+            }
+        }
+    );
+},
+
+prop : function(id){
+    return mvcStorage.apply( this,[id,_mvc.prop] ).get(arguments); // todo: arguments
+},
+
+get  : function(){ // todo: arguments
+    if (0 in arguments && 1 in arguments[0]) {
+        var conf         = arguments[0][1][0],
+            data         = arguments[0][1][1],
+            updatedProps = arguments[0][1][2] || {};
+
+        for (var p in conf){
+            if ( (p-1) >= -1 ) { // todo
+                this.prop( conf[p], data[p-(-1)], updatedProps );
+            }
+        }
+    }
+    return this;
+},
+
+json : function( json ){
+    for (var prop in json) {
+        switch ( typeof json[prop]) {
+            case "string"   : this.prop( prop, json[prop] ); break;
+            case "number"   : this.prop( prop, json[prop] ); break;
+            case "boolean"  : this.prop( prop, json[prop] ); break;
+            case "function" : this[prop] = json[prop];       break;
+            default: break;
+        }
+    }
+    return this;
+},
+
+html : function( _class ){
+    return _class ? window.$(this.selectorID).find("."+_class) : window.$(this.selectorID);
+}
+
+};
+
+LIB.merge.call(mvcObj, mvcBlockable);
+
+
+
+var mvcSet    = {
+
+type   : "set",
+
+init   : function(){
+    var set    = this;
+    this.mods  = {};
+    this.index = [];
+
+    this._fire_index = 0;
+
+    $(set).on(
+        "mvc:objectCreated mvc:objectDeleted",
+        function (e,obj) {
+            if (obj.type === "obj") {
+                if (e.type === "mvc:objectCreated") {
+                    set.index.push( obj.mvcid );
+                }
+                mvcStorage.apply(this , ["length",_mvc.prop] ).get( ["length",set.index.length] );
+
+                if ( set._fire_index === 0 ) {
+                    LIB.async(
+                        function(){
+                            //mvc.log("trigger mvc:index",set.id);
+                            $( set ).trigger("mvc:index", set.index.length );
+                            //mvc.log("set._fire_index",set.id,set._fire_index);
+                            set._fire_index = 0;
+                        }
+                    );
+                }
+                set._fire_index++;
+            }
+        }
+    );
+},
+
+
+obj    : function(id){
+    return mvcStorage.apply( mvcGetByID( (this.mvcid.split(mvcModeDelim))[0] ) ,[id,_mvc.obj]).get(arguments) ; // todo: arguments
+},
+
+get    : function(){ // todo: arguments
+  if ( 1 in arguments[0] ) {
+
+    this.loadflag = true;
+    //console.log("---LOADFLAG----"+this.id);
+    //console.log(arguments[0][1]);
+
+    var frame = arguments[0][1][0].length+1;
+    var data  = arguments[0][1][1];
+    for (var pos=0; data.length > pos+frame; pos+=frame){
+        var updatedProps = { length : 0 };
+        this.obj(
+            data[pos],
+                [
+                    arguments[0][1][0],
+                    data.slice( pos, pos + frame ),
+                    updatedProps
+                ]
+            );
+
+        if (updatedProps.length > 0) {
+            updatedProps.length = null;
+            delete updatedProps.length;
+            $(this).trigger(
+                "mvc:objectUpdated",
+                [ data[pos], updatedProps ]
+            );
+        }
+    }
+
+    delete this.loadflag;
+    //console.log("---DELETE LOADFLAG----"+this.id);
+  }
+  return this;
+},
+
+each : function( callback, filter ){
+    var res = [],
+        pos = 1,
+        spos = 1,
+        key,
+        obj;
+
+    if (arguments.length === 0 || !$.isFunction(callback) || !( filter && $.isFunction(filter) ) ){
+        throw "mvc.each incorrect arguments";
+    }
+
+    for( key in this.index ){
+        obj = _mvc.obj.s[ this.index[key] ];
+        if ( (key-1)>=-1 ) {
+            if( !filter || ( filter && filter.call( obj, spos )) ){
+                obj.position = pos++;
+                res.push(
+                    callback.call( obj )
+                );
+            }
+            spos++;
+        }
+    }
+
+    return res;
+},
+
+prop   : function( id ) {
+    if (id === "length") {
+        return this.index.length;
+    }
+    return mvcStorage.apply(this,[id,_mvc.prop]).get(arguments); // todo: arguments
+},
+
+first: function(){
+    return this.index.length ? _mvc.obj.s[ this.index[0] ] : null;
+},
+
+last: function(){
+    return this.index.length ? _mvc.obj.s[ this.index[ this.index.length-1 ] ] : null;
+},
+
+mod : function( obj ){
+    LIB.functionID( obj.getIndex );
+    var set = this,
+        Mod = function(){ this.ev = {i:"Mod events"}; },
+        mod = new Mod();
+
+    Mod.prototype = set;
+
+    mod.name  = obj.name +":"+ obj.getIndex.id;
+    mod.mvcid = this.mvcid + mvcModeDelim + mod.name;
+    mod.id    = this.id    + mvcModeDelim + mod.name;
+    mod._fire_index = 0;
+
+    mod.propset = function( propset ){
+
+        mod.prop = function ( id ) {
+            if (id in propset) {
+                return mvcStorage.apply(this,[id,_mvc.prop]).get(arguments); // todo: arguments
+            } else {
+                return set.prop.apply(set,arguments);
+            }
+        };
+
+        for (var p in propset) {
+            mod.prop(p, propset[p] );
+        }
+    };
+
+    var indexUpdater = function(e,id){
+        var new_index = obj.getIndex(),
+            old_index = mod.index;
+
+        //mvc.log("indexUpdater",e.type,mod.id,new_index.length);
+
+        if ( new_index.join() !== old_index.join() ) {
+            mod.index = new_index;
+
+            if ( mod._fire_index === 0 ) {
+                LIB.async(
+                    function(){
+                        $( mod ).trigger("mvc:index", set.index.length );
+                        //mvc.log("set._fire_index",set.id,set._fire_index);
+                        mod._fire_index = 0;
+                    }
+                );
+            }
+            mod._fire_index++;
+
+            if ( new_index.length !== old_index.length ) {
+                mod.prop( "length", new_index.length );
+            }
+        }
+
+        if (e.type === "mvc:objectUpdated" && ($.inArray( mod.obj(id).mvcid, new_index ) > -1 ) ){
+            LIB.async(
+                function(){
+                    $( mod ).trigger( "mvc:objectUpdated", id );
+                }
+            );
+        }
+
+    };
+
+    /* todo: add getIndex change */
+    $(set).on("mvc:propUpdated:length mvc:objectUpdated mvc:index", indexUpdater);
+
+    $(mod).on("mvc:mod", indexUpdater);
+
+    this.mods[ mod.name ] = mod;
+
+    return mod;
+},
+
+filter : function( callback ){
+    var set = this,
+        modObj = {
+            name     : "filter",
+            getIndex : function(){
+                return set.each(
+                    function(){
+                        return this.mvcid;
+                    },
+                    callback
+                );
+            }
+        },
+
+        mod = set.mod(modObj);
+
+        mod.index = modObj.getIndex();
+
+        mod.propset(
+          {"length":mod.index.length}
+        );
+
+    return mod;
+},
+
+sort : function( param, _order ){
+    var set    = this,
+        modObj = {name: "sort"},
+        sorter,
+        mod,
+        order = _order ? "DESC" : "ASC";
+
+        if (typeof param === "function") {
+            sorter = param;
+        } else if(typeof param === "string"){
+            sorter = function( a, b ){
+                return ( a.prop(param) - b.prop(param) ) * (mod.prop("sort:order") === "ASC" ? 1 : -1);
+            };
+        }
+
+        modObj.getIndex = function(){
+            var index = set.index.slice(0);
+
+            index.sort(
+                function(a,b){
+                    return sorter.call( null, mvcGetByID(a), mvcGetByID(b) );
+                }
+            );
+
+            return mod.prop("sort:reversed") ? index.reverse() : index;
+        };
+
+        mod = set.mod(modObj);
+
+        mod.propset(
+            {"sort:order":order}
+        );
+
+        mod.reverse = function(){
+            mod.prop("sort:order", mod.prop("sort:order") === "ASC" ? "DESC" : "ASC");
+        };
+
+        mod.index = modObj.getIndex();
+
+        // todo: перенести в set.mod ?
+        $(mod).on(
+            "mvc:propUpdated:sort:order",
+            function(){
+                $(mod).trigger("mvc:mod");
+            }
+        );
+
+    return mod;
+},
+
+
+pager : function( _num ){//, radius
+    var set    = this,
+        num    = parseInt( _num , 10 ) || false,
+        modObj = { name: "pager" },
+        mod;
+
+        if (!num) { throw "mvcSet:pager - incorrect argument"; }
+
+        modObj.getIndex = function(){
+            var length = set.prop("pager:total") || set.index.length;
+            mod.prop("pager:count", Math.ceil( length / mod.prop("pager:num") ) );
+            if ( mod.prop("pager:page") >= mod.prop("pager:count")  ) {
+                mod.prop("pager:page", 0 );
+            }
+            mod.prop("pager:hasnext", (mod.prop("pager:page")+1) &lt; mod.prop("pager:count") );
+            mod.prop("pager:hasprev",  mod.prop("pager:page") > 0 );
+            return set.index.slice(
+                mod.prop("pager:page")*mod.prop("pager:num"),
+                (mod.prop("pager:page")+1)*mod.prop("pager:num")
+            );
+        };
+
+        mod = set.mod(modObj);
+
+        mod.propset( // todo: ?
+            {
+                "pager:num"     : num,
+                "pager:page"    : 0,
+                "pager:count"   : 0,
+                "pager:hasnext" : false,
+                "pager:hasprev" : false,
+                "pager:keys"    : false,
+                "pager:visited" : "1"
+            }
+        );
+
+
+        $(mod).on(
+            "mvc:propUpdated:pager:page",
+            function(e,p){
+                var visited =  mod.prop("pager:visited").split(",");
+                //mvc.log("visited",arguments);
+                visited[p.value] = 1;
+                mod.prop( "pager:visited", visited.join(",") );
+                if ( set.prop("pager:total") ){
+                    LIB.async(
+                        function () {
+                            $(set).trigger("mvc:pager:need", p.value );
+                        }
+                    );
+                }
+                //mvc.log("pager:visited",mod.prop("pager:visited"));
+            }
+        );
+
+        $(mod).on(
+            "mvc:propUpdated:pager:page mvc:propUpdated:pager:num mvc:propUpdated:pager:keys",
+            function(){
+                $(mod).trigger("mvc:mod");
+            }
+        );
+
+        mod.index = modObj.getIndex();
+        return mod;
+},
+
+
+/*TODO : tree : function( param ){ },  */
+
+json : function( data , silence ){
+    var k, o;
+    this.loadflag = silence === true;
+
+    if ( $.isArray( data ) ) {
+        for ( k in data ){
+            o = data[k];
+            if ( "id" in o && typeof o.id === "string"  && $.trim(o.id).length > 0 && $.isPlainObject(o) ) {
+                this.obj( o.id ).json( o );
+            }
+        }
+
+    } else if ( $.isPlainObject( data ) ) {
+        for ( k in data ){
+            if ( $.trim(k).length > 0 ) {
+                this.prop( k, data[ k ] );
+            }
+        }
+    }
+
+    delete this.loadflag;
+
+    return this;
+},
+
+del  : function( id ){
+
+    var _o = mvcGetByID( id );
+
+    if (_o !== mvc) {
+        return _o.parent().del( _o.id );
+    }
+
+    if ( _mvc.obj.has( this.mvcid, id ) ) {
+
+        //mvc.log("---DELETE---",id);
+
+        this.obj(id).unblockAll();
+
+        var _id = _mvc.obj._mvcid(this.mvcid,id);
+
+        delete _mvc.obj.s[_id];
+
+        var index=[];
+
+        for ( var i=0; i&lt;this.index.length; ++i ){
+            if ( this.index[i] !== _id ) {
+                index.push( this.index[i] );
+            }
+        }
+
+        this.index = index;
+
+        // delete props
+        for (var p in _mvc.prop.s){
+            if ( p.indexOf( id + mvcDelim + "prop" + mvcDelim ) !== -1 ) {
+                delete _mvc.prop.s[p];
+            }
+        }
+        $(this).trigger(
+            "mvc:objectDeleted",
+            [{type:"obj",id:id}]
+        );
+    }
+},
+
+empty: function(){
+    var index = this.index.slice(0);
+    for(var i in index){
+        this.del(
+            index[i]
+        );
+    }
+}
+
+};
+
+LIB.merge.call( mvcSet, mvcBlockable );
+
+
+
+
+window.i18n = window.i18n || {};
+
+var mvcView   = {
+
+type: "view",
+
+init: function(){
+    mvcModulizer(this);
+    return true;
+},
+
+i18n: function( ){
+    var view_id = this.id,
+        defs = [],
+        i;
+
+    for ( i = 0; i &lt; arguments.length; i++ ) {
+        defs.push(
+            mvc.getI18N(
+                arguments[i]
+            )
+        );
+    }
+
+    return $.when
+            .apply( $, defs )
+            .fail (
+                function(){
+                    throw "i18n for view[" + view_id + "] failed";
+                }
+            )
+            .promise();
+},
+
+template: function ( id ) {
+    return {
+        template: id,
+        id:       this.id
+    };
+},
+
+render: function ( blockID ) {
+    //mvc.log("----RENDER---- ", this.id, " status=", this.prop("status") );
+    var block   = mvcGetByID( blockID ),
+        view    = this;
+
+    //mvc.log("mvcView:render " + block.id );
+    if ("render" in block) {
+
+        //mvc.log("_v__p__rendering " + block.id, block.parent().id, block.prop("rnrTimeout")   );
+
+        window.clearTimeout(
+            block.prop("rnrTimeout")
+        );
+
+        block.prop(
+            "rnrTimeout",
+            window.setTimeout(
+                function() {
+                    block._render();
+                },
+                10 // todo: config
+            )
+        );
+
+        return block.prop("rnrTimeout");
+    } else {
+        //mvc.log("_v__i__rendering " + block.id, block.parent().id );
+        block.render = function ( e, prop ) {
+            var block = mvcGetByID( blockID );
+            if ( prop in block.propbind ) {
+                //mvc.log("_v__r__rendering " + block.id, block.parent().id, " event=", e.type, ( e.type == "mvc:propUpdate" ? prop : prop ) );
+                return view.render( blockID );
+            }
+            return true;
+        };
+
+        $( block.parent() ).on(
+            "mvc:propUpdate",
+            block.render
+        );
+
+        block.unbindDataListener = function(){
+            var block = mvcGetByID( blockID );
+            $( block.parent() ).off(
+                "mvc:propUpdate",
+                block.render
+            );
+        };
+
+        return view.render( blockID );
+    }
+    return true;
+},
+
+style: function (flag) {
+    if (flag) {
+        var view     = mvc.set("mvc-views").obj(this.id),
+            config   = mvc.obj("mvc-config").snapshot,
+            src      = view.prop("cssmd5")  ? ( config.cdn || "" ) + view.key + "/" + view.id + "." + view.prop("cssmd5") + ".css" : config["view-builder-path"] + "?template=" + this.id + "&style=true&_=" + Math.random();
+            return LIB.load.style( src, (view.key ? view.key + ":css" : false ), view.prop("cssmd5") );
+    }
+    return true;
+},
+
+load: function () {
+    var view     = mvc.set("mvc-views").obj(this.id),
+        config   = mvc.obj("mvc-config").snapshot,
+        src;
+        view.key = false;
+    if ( view.prop("jsmd5") ) {
+        view.key   = "/" + view.prop("path") + "/static/views/" + view.id;
+        src   = ( config.cdn || "" ) + view.key + "/" + view.id + "." + view.prop("jsmd5") + ".js";
+    } else {
+        src   = mvc.obj("mvc-config").prop("view-builder-path") + "?template=" + view.id + "&_=" + Math.random();
+    }
+    return LIB.load.script( src, (view.key ? view.key+":js" : false), view.prop("jsmd5") );
+},
+
+prop : function(id){
+    return mvcStorage.apply( this, [ id, _mvc.prop ] ).get( arguments ); // todo: arguments
+}
+
+};
+
+
+
+var mvcSlotPrefix = "slot-",
+    mvcSlotCounter = 0,
+
+mvcMakeSlot = (
+    function(){
+        return function( slot ) {
+            if ( "jquery" in slot ) {
+
+                var classes = ( slot.attr("class") ? slot.attr("class").split(" ") : "" ),
+                    isSlot = false, c, id;
+
+                for ( c = 0; c &lt; classes.length; c++ ) {
+                    if ( classes[c] && classes[c].indexOf( mvcSlotPrefix ) !== -1 ) {
+                        isSlot = classes[c].substr (mvcSlotPrefix.length );
+                        break;
+                    }
+                }
+                if ( isSlot === false) {
+                    id = (mvcSlotCounter++)+"";
+                    slot.addClass(mvcSlotPrefix + id);
+                } else{
+                    //mvc.log("parseSlot ", isSlot );
+                    id = isSlot;
+                }
+                return mvc.slot( id, slot[0].tagName );
+            }
+        };
+    }
+)(),
+
+mvcSlot   = {
+
+type  : "slot",
+
+init  : function(){
+    this.blocks   = {};
+    this.mod      = null;
+    this["class"] = "";
+    this.callFlag = false;
+
+},
+
+unblock: function(){
+    //mvc.log("_____s_UNBLOCK", slot.id );
+    for (var i in this.blocks) {
+        mvcGetByID( i ).unblock( this.blocks[ i ], true );
+        delete this.blocks[i];
+    }
+},
+
+
+render: function(){
+    var slot = this,
+        data = slot.parent().parent(),
+        res;
+
+    //mvc.log("_____s_render_START "+slot.mod+" slot.id=", slot.id)
+    /*
+
+    mvc.log("_____s_render_START \n        slot.id=", slot.id,
+        "\n        slot.mod=", slot.mod,
+        "\n        slot.blocks=", slot.blocks,
+        "\n        data.id=", data.id
+        );
+    */
+    /*function logSlot_COMPLETE (){
+
+
+        mvc.log("_____s_render_COMPLETE \n        slot.id=", slot.id,
+            "\n        slot.blocks=", slot.blocks
+        );
+
+
+    }*/
+
+    if ( slot.mod === "call" ) {
+        res = slot.renderCall(data);
+    } else if ( slot.mod === "apply" ) {
+        res = slot.renderApply(data);
+    } else {
+        res = slot.renderSlot(data);
+    }
+/*
+    if ("done" in res) {
+        res.done(logSlot_COMPLETE);
+    } else {
+        logSlot_COMPLETE();
+    }
+*/
+
+    return res;
+},
+
+get   : function(){ // todo: arguments
+    if (1 in arguments[0]) {
+        this.tag = arguments[0][1] || "div";
+    }
+    return this;
+},
+
+node : function ( $ctx ) {
+
+    var parent = this.parent(),
+        $parentNode,
+        className = mvcSlotPrefix + this.id,
+        res;
+
+    if ( parent && ( $ctx || parent.node) ) {
+        $parentNode = ( $ctx ) ? $ctx : parent.node;
+        if ( $parentNode.hasClass( className ) ) {
+            res = $parentNode;
+        } else {
+            res = $parentNode.find("." + mvcSlotPrefix + this.id);
+        }
+    } else {
+        res = $("."+mvcSlotPrefix + this.id, HTML.body );
+    }
+    return res;
+},
+
+teleport  : function( $dest, $src ){
+
+    var slot = this,
+        $destSlot = this.node( $dest ),
+        $srcSlot  = this.node( $src  );
+
+
+    /*
+        mvc.log("_____s_TELEPORT ["+this.mod+"]",this.id,
+            "\n       $destSlot=",$destSlot,
+            "\n       $srcSlot=",$srcSlot,
+            "\n       slot.blocks=",slot.blocks
+        );
+    */
+    if ( this.mod === "apply" ) {
+        var setMap = {},
+            $point = $destSlot;
+
+        $( slot.parent().parent().index ).map(
+            function( i, mvcid ){
+                return setMap[mvcid] = true;
+            }
+        );
+
+        $( $srcSlot.nextAll() ).map(  //todo: ?
+            function(i, item){
+                var data = $(item).data("mvc");
+
+                if ( data.data in setMap ) {
+                    $point = $( item ).detach().insertAfter( $point );
+                }
+
+                return true;
+            }
+        );
+
+    } else {
+        $destSlot.replaceWith( $srcSlot.detach() );
+    }
+},
+
+replace   : function( block, $html ){
+
+    /*
+        mvc.log("_____s_render_REPLACE",
+                    "\n        block.mvcid=", block.mvcid,
+                    "\n        slot.id=", this.id,
+                    "\n        block.node=", block.node,
+                    "\n        $html=", $html
+                    );
+    */
+
+    $.map(
+        block.slots,
+        function( mvcid ){
+            return mvcGetByID( mvcid ) .teleport( $html, block.node );
+        }
+    );
+
+    block.node.replaceWith( $html );
+    block.node = $html;
+    mvcSlot.setData.call(
+        block,
+        $html,
+        this.callFlag
+    );
+},
+
+insert    : function( _block, $html ){
+    var slot  = this,
+        $slot,
+        block = mvcGetByID( _block.mvcid ),
+        data  = block.parent();
+
+    block.node = $html;
+    slot.blocks[data.mvcid] = block.mvcid;
+    /*
+    mvc.log("_____s_render_INSERT", block.id ,
+                "\n        slot.id=", this.id,
+                "\n        $html=", $html
+    );
+    */
+    $slot = slot.node();
+    if ( slot.mod === "apply"  ) {
+        var $point = $slot,
+            index  = mvcGetByID( block.pBlockMVCID ).parent().index,
+            i,
+            curr,
+            prev;
+        if ( index.length > 1) {
+            //mvc.log("---insert ", index);
+            for ( i=0; i&lt;index.length; i++ ) {
+                curr = index[i];
+                if ( curr === data.mvcid && prev ) {
+                    //mvc.log("---insert",  data.mvcid," after ", prev );
+                    $point = mvcGetByID( slot.blocks[ prev ] ).node;
+                    break;
+                }
+                prev = curr;
+            }
+        }
+        //mvc.log("insertAfter", $slot, $point, this.blocks);
+        $html.insertAfter( $point );
+    } else {
+        $slot.append( $html );
+    }
+    mvcSlot.setData.call( block, $html, this.callFlag );
+},
+
+setData: function( node, callFlag ){
+    //mvc.log("setData",this,node);
+    node.data("mvc",
+        {
+        block : this.mvcid,
+        data  : this.parent().mvcid,
+        id    : this.parent().id,
+        callFlag : callFlag
+        }
+   );
+},
+
+renderSlot: function(  ){// todo: ? unused( data )
+    /*var slot = this,
+        i,
+        data,
+        block,
+        renders = [];*/
+/*
+    mvc.log("_____s__renderSlot",
+        "\n        slot.id=", slot.id,
+        "\n        slot.blocks=", slot.blocks,
+        "\n        data.id=", data.id
+    );
+*/
+
+/*
+     for (i in slot.blocks) {
+        data  = mvcGetByID( i );
+        block = mvcGetByID( slot.blocks[ i ] );
+        view  = block._view();
+        template  = block._template();
+        block.unblock();
+        delete slot.blocks[i];
+        renders.push(
+          data.block(
+            view.template( template ),
+            slot
+          )
+        )
+    }
+*/
+    return $.when.apply( null, [] ).promise();
+},
+
+renderCall: function( data ){ // todo: nahern
+    return data.block(
+        mvc.view( this.view ).template( this.template ),
+        this
+    );
+},
+
+slotPosition: function(){
+    var res = { idByPos:[], posById:{} },
+        i=0,
+        dataID;
+    for ( dataID in this.blocks ) {
+        res.idByPos.push(dataID);
+        res.posById[dataID] = i++;
+    }
+    return res;
+},
+
+renderApply: function( data ){
+    var slot = this;
+    //mvc.log("_____s__renderApply", slot.id, " : " , slot.view, slot.template );
+    if ( !("childApply" in slot) ) {
+        slot.childApply = function( ) {
+            var c,
+                dataID,
+                actionsReplace  = [],
+                actionsInsert   = [],
+                actionsUnblock  = [],
+                slotPos         = slot.slotPosition(), //todo: rename
+                newBlocks       = {},
+                dfd             = $.Deferred();
+            /*
+                mvc.log("_____s__childApply",
+                    "\n        slot.id=", slot.id,
+                    "\n        slot.blocks=", slot.blocks,
+                    "\n        data.index=", data.index,
+                    "\n        slotPos=", slotPos
+                );
+            */
+
+            for ( c = 0; c &lt; data.index.length; c++ ) {
+                dataID = data.index[c];
+                newBlocks[dataID] = "";
+                if ( dataID in slot.blocks ) {
+                    newBlocks[ dataID ] = slot.blocks[dataID];
+                    if ( slotPos.idByPos[c] !== dataID && slotPos.posById[dataID] &lt; c) {
+                        actionsReplace.push(
+                            {
+                                dataID  : data.index[c],
+                                action  : "replace",
+                                replace : slotPos.idByPos[c]
+                            }
+                        );
+                    }
+                } else {
+                    actionsInsert.push(
+                        {
+                            dataID: dataID,
+                            action: "insert"
+                        }
+                    );
+                }
+            }
+
+            for ( dataID in slot.blocks ) {
+                if ( ! ( dataID in newBlocks)) {
+                    actionsUnblock.push(
+                        {
+                            dataID: dataID,
+                            action  : "unblock",
+                            blockID:slot.blocks[dataID]
+                        }
+                    );
+                }
+            }
+
+            /*
+            mvc.log("_____s_childApply actions",
+                "\n        slot.id=", slot.id,
+                "\n        slotPos=", slotPos,
+                "\n        actionsInsert=", actionsInsert,
+                "\n        actionsReplace=", actionsReplace,
+                "\n        actionsUnblock=", actionsUnblock
+            );
+            */
+
+            dfd = $.when.apply(
+                null,
+                $.map(
+                    ( actionsInsert.length ? actionsInsert : actionsReplace ).concat( actionsUnblock ) , // todo: naming
+                    function( a ){ // todo: naming a
+                        var data = mvcGetByID( a.dataID );
+                        if ( a.action ) {
+                            if ( a.action === "insert") {
+                                var blockRes   = data.block( mvc.view( slot.view ).template( slot.template ), slot ); // todo: static
+                                blockRes.after = a.after;
+                                newBlocks[data.mvcid] = blockRes.mvcid;
+                                return blockRes;
+                            } else if ( a.action === "unblock" ) {
+                                //mvc.log("_____s__UNBLOCK",a);
+                                return data.unblock( a.blockID );
+                            } else if ( a.action === "replace") {
+                                var firstBlockID   = slot.blocks[a.replace],
+                                    secondBlockID  = slot.blocks[a.dataID],
+                                    bFirst  = mvcGetByID( firstBlockID  ).node[0],
+                                    bSecond = mvcGetByID( secondBlockID ).node[0],
+                                    parentNode = bFirst.parentNode,
+                                    pF = parentNode.insertBefore( document.createTextNode(""), bFirst),
+                                    pS = parentNode.insertBefore( document.createTextNode(""), bSecond);
+
+                                //mvc.log("REPLACE", a.replace,"&lt;->",a.dataID);
+
+                                parentNode.replaceChild(bFirst,pS);
+                                parentNode.replaceChild(bSecond,pF);
+                                newBlocks[a.dataID]  = secondBlockID;
+                                newBlocks[a.replace] = firstBlockID;
+                            } else {
+                                //mvc.log("_____s__APPLY ",a);
+                                throw "unknown action="+a.action;
+                            }
+                        }
+                        return false;
+                    }
+                )
+            );
+            //mvc.log("NEWBLOCKS",newBlocks);
+            slot.blocks = newBlocks;
+            return dfd.promise();
+        };
+        $( data ).on("mvc:index", slot.childApply );
+        slot.childUnApply = function(){
+            $( data ).off("mvc:index", slot.childApply );
+        };
+    }
+    return slot.childApply( "init" );
+},
+
+toHtml : function(){
+    return "&lt;"+(this.tag || "div")+" class=\"" + mvcSlotPrefix + this.id + " " + this["class"] + "\" " + (this.mod === "apply"?" style=\"display:none;\"":"") +"/>"; //
+}
+
+};
+
+
+
+function mvcGetByID ( mvcid ) {
+    if ( !mvcid || mvcid.indexOf(mvcDelim) === -1 ) { //p.indexOf(id+mvcDelim+"prop"+mvcDelim) !== -1
+        return mvc;
+    }
+
+    if ( mvcid in _mvc.type_id ) {
+        if ( mvcid in _mvc[_mvc.type_id[mvcid]].s ) {
+            return _mvc[ _mvc.type_id[ mvcid ] ].s[ mvcid ];
+        }
+    }
+
+    var path = mvcid.split(mvcDelim),
+        obj  = mvc,
+        type,
+        id;
+
+    //mvc.log("Neimenggu:mvcGetByID", mvcid);
+
+    path.shift();
+
+    while (path.length) {
+        type = path.shift();
+        id   = path.shift().split( mvcModeDelim );
+        //mvc.log("Neimenggu:mvcGetByID ", type, id);
+        obj  = ( obj[type] )( id.shift() );
+
+        if ( id.length ) {
+            obj = obj.mods[id[id.length-1]];
+        }
+    }
+    return obj;
+}
+
+
+
+function Neimenggu( constr ) {
+
+    this.s = {};
+
+    this.c = constr;
+
+    this.c.parent = function(){
+        return this.pid === "mvc" ? null : mvcGetByID( this.pid );
+    };
+
+    this._mvcid   = function( parentID, ID ){
+        return parentID + mvcDelim + this.c.type + mvcDelim + ID;
+    };
+
+}
+
+Neimenggu.prototype.has = function( parentID, ID ) {
+    return this._mvcid( parentID, ID ) in this.s;
+};
+
+Neimenggu.prototype.add = function( parentID, ID ) {
+
+    var _id = this._mvcid( parentID, ID );
+
+    _mvc.type_id[ _id ] = this.c.type;
+
+    this.s[_id] = $.extend( // todo: ?
+        {
+            mvcid: _id,
+            ev:    { i:"events" }, // todo: events
+            id:    ID,
+            pid:   parentID
+        },
+        this.c
+    );
+
+    if( "init" in this.c ){
+        this.s[_id].init();
+    }
+
+    return this.s[_id];
+};
+
+Neimenggu.prototype.get = function( parentID, ID ){
+    return this.s[
+        this._mvcid(
+            parentID, ID
+        )
+    ];
+};
+
+
+
+function mvcStorage( ID, storage ){
+    try {
+        if (!ID) {
+            throw new Error("mvcStorage: empty ID -" + this.type);
+        }
+    }
+    catch (e) {
+        mvc.log("mvcStorage: ", e, this, arguments);
+    }
+
+    if( ! storage.has( this.mvcid, ID ) ){
+        $(this).trigger(
+            "mvc:objectCreated",
+            storage.add(
+                this.mvcid,
+                ID
+            )
+        );
+    }
+    return storage.get(this.mvcid,ID);
+}
+
+
+
+// собираем хранилище
+_mvc = mvc._mvc = /* backdoor */ {
+    prop  :   new Neimenggu( mvcProp   ),
+    module:   new Neimenggu( mvcModule ),
+    set   :   new Neimenggu( mvcSet    ),
+    slot  :   new Neimenggu( mvcSlot   ),
+    block :   new Neimenggu( mvcBlock  ),
+    obj   :   new Neimenggu( mvcObj    ),
+    view  :   new Neimenggu( mvcView   ),
+    type_id : {} // кеш для быстрой адресации элементов хранилища по типу
+};
+
+
+// собираем API
+mvc =  window.mvc = LIB.merge.call(
+    mvc,
+    {
+
+    obj     : function( id ){ return mvcStorage.apply(  this, [ id, _mvc.obj    ]).get( arguments ); },
+    set     : function( id ){ return mvcStorage.apply(  this, [ id, _mvc.set    ]).get( arguments ); },
+    module  : function( id ){ return mvcStorage.apply(  this, [ id, _mvc.module ]).get( arguments ); },
+    prop    : function( id ){ return mvcStorage.apply(  this, [ id, _mvc.prop   ]).get( arguments ); },
+    view    : function( id ){ return mvcStorage.apply(  this, [ id, _mvc.view   ]).get( arguments ); },
+    slot    : function( id ){ return mvcStorage.apply(  this, [ id, _mvc.slot   ]).get( arguments ); },
+
+    // хелпер для подгрузки модулей
+    load    : function(list){
+        for( var m in list ) {
+            if ( list[m] && (m-1) >= -1 ){
+                mvc.module( list[m] ).load();
+            }
+        }
+    },
+
+    // хелпер для подгрузки данных mvc.data( {url:url} ).done( ... ).fail( ... )
+    data      : LIB.load.data,
+
+    // хелпер для подгрузки локализации
+    getI18N   : LIB.load.i18n,
+
+    // хелпер для подгрузки скриптов
+    getScript : LIB.load.script,
+
+    // хелпер для внешней адресации по внутреннему mvcid
+    getByID   : mvcGetByID,
+
+    // todo
+    /*logger    : {
+
+        cache: [],
+
+        empty: function(){
+            mvc.logs.cache = [];
+        },
+
+        flush: function(){
+            $(
+                mvc
+            ).trigger(
+                "mvc:logs"
+            );
+
+        }
+    },*/
+    // хелпер для логирования
+    log       : function (){
+        try {
+            if( mvc.obj("mvc-config").prop("logger") ) {
+                mvc.logs.cache.push( arguments );
+                window.console.log.apply( window.console, arguments );
+            }
+        } catch ( e ) {
+            return false;
+        }
+    }
+
+});
+
+// alias
+mvc.map = mvc.set;
+
+
+
+/**
+mvc-config
+**/
+mvc.obj("mvc-config").json(
+    {
+        "view-builder-path" : "/mvc/tools/mvc.view.xml",
+        "module-timeout-ms" : 5000,
+        "view-timeout-ms"   : 5000,
+        "logger"            : true
+    }
+);
+
+// alias
+mvc.map = mvc.set;
+
+
+
+return mvc;
+
+}
+) ( jQuery, window, document );
+
+
+
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Index</a></h2><h3>Modules</h3><ul><li><a href="module-mbc.html">mbc</a></li></ul>
+</nav>
+
+<br clear="both">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.2.0-dev</a> on Mon Jan 28 2013 23:40:49 GMT+0400 (Московское стандартное время)
+</footer>
+
+<script> prettyPrint(); </script>
+</body>
+</html>

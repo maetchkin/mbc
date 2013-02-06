@@ -1,0 +1,8 @@
+{
+    "id"          : "test-obj-1",
+    "propString"  : "String Value",
+    "propNumber"  : 1,
+    "propBool"    : true,
+    "propArray"   : [],
+    "propObject"  : {}
+}

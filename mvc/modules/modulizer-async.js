@@ -1,0 +1,1 @@
+mvc.module("modulizer-async",{});

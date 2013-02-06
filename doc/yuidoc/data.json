@@ -1,0 +1,57 @@
+{
+    "project": {
+        "name": "mbc",
+        "description": "Plugin for yet another MVC on client-side.",
+        "version": "0.1.0",
+        "url": ""
+    },
+    "files": {
+        "dist/mbc.0.1.0.js": {
+            "name": "dist/mbc.0.1.0.js",
+            "modules": {
+                "mbc": 1
+            },
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        }
+    },
+    "modules": {
+        "mbc": {
+            "name": "mbc",
+            "submodules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {},
+            "tag": "module",
+            "file": "dist/mbc.0.1.0.js",
+            "line": 1,
+            "description": "Provides window.mbc - global storage for models, modules and views",
+            "copyright": "Bogdan Maetchkin 2013-1-28",
+            "version": "0.1.0"
+        }
+    },
+    "classes": {},
+    "classitems": [
+        {
+            "file": "dist/mbc.0.1.0.js",
+            "line": 2332,
+            "class": "",
+            "module": "mbc"
+        }
+    ],
+    "warnings": [
+        {
+            "message": "unknown tag: copyright",
+            "line": " dist/mbc.0.1.0.js:1"
+        },
+        {
+            "message": "unknown tag: version",
+            "line": " dist/mbc.0.1.0.js:1"
+        },
+        {
+            "message": "Missing item type",
+            "line": " dist/mbc.0.1.0.js:2332"
+        }
+    ]
+}
