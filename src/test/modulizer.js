@@ -123,7 +123,7 @@ asyncTest(
 
             promise.done(
                 function(){
-                    ok(  true , "modulizer-async loaded");
+                    ok(  true , "modulizer-async - loaded");
                     start();
                 }
             );
