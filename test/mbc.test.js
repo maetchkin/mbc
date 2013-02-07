@@ -199,14 +199,18 @@ asyncTest(
 asyncTest(
     "asynchronous loading with sync-init",
     function() {
+        stop();
 
         var promise = mvc .module("modulizer-async-init-sync").load();
             
-            stop();
+            
 
             setTimeout(
-                function(){ return start(); },
-                mvc.obj("mvc-config").prop( "module-timeout-ms" )
+                function(){
+                    console.log("start by Timeout");
+                    return start();
+                },
+                4/*mvc.obj("mvc-config").prop( "module-timeout-ms" )*/
             );
 
 
