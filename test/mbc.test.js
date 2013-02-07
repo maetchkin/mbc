@@ -63,6 +63,8 @@ test(
 
 module("modulizer", { setup: setup("/modulizer.js", "modulizer"), teardown: moduleTeardown } ); 
 
+QUnit.config.testTimeout = mvc.obj("mvc-config").prop( "module-timeout-ms" )*2;
+
 var m_getter  = "mvc.module(\"modulizer\")",
     mvcModule;
 
@@ -199,30 +201,32 @@ asyncTest(
 asyncTest(
     "asynchronous loading with sync-init",
     function() {
-        stop();
 
-        var promise = mvc .module("modulizer-async-init-sync").load();
-            
-            
+        var promise = mvc .module("modulizer-async-init-sync").load();            
 
-            setTimeout(
+            var mt = setTimeout(
                 function(){
+                    ok( false, "modulizer-async-init-sync timed out");
                     return start();
                 },
-                mvc.obj("mvc-config").prop( "module-timeout-ms" )/*4*/
+                mvc.obj("mvc-config").prop( "module-timeout-ms" )
             );
 
 
             promise.done(
                 function(){
-                    equal( this.state, "loaded", "synchronously inited");
                     start();
+                    clearTimeout(mt);
+                    equal( this.state, "loaded", "synchronously inited");
+                    
                 }
             )
             .fail(
                 function(){
-                    ok( false, "modulizer-async-init-sync failed");
                     start();
+                    clearTimeout(mt);
+                    ok( false, "modulizer-async-init-sync failed");
+                    
                 }
             );
     }
