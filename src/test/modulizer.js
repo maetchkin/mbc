@@ -6,7 +6,7 @@ var m_getter  = "mvc.module(\"modulizer\")",
 test(
     "core-module mvc.module( ) throws",
     function () {
-        throws(
+            throws(
                 function () {
                     return mvc.module();
                 },
@@ -134,6 +134,23 @@ asyncTest(
 );
 
 asyncTest(
+    "loading not exists module",
+
+    function() {
+
+        mvc .module("modulizer-not-exits")
+            .load()
+            .fail(
+                function(){
+                    start();
+                    ok( true, "modulizer-not-exits fails");
+                    equal( this.prop("status"), "error", "prop(status) is 'error'");
+                }
+            );
+    }
+);
+
+asyncTest(
     "asynchronous loading with sync-init",
     function() {
 
@@ -153,7 +170,7 @@ asyncTest(
                     start();
                     clearTimeout(mt);
                     equal( this.state, "loaded", "synchronously inited");
-                    
+                    equal( this.prop("status"), "ready", "prop(status) is 'ready'");
                 }
             )
             .fail(
@@ -161,7 +178,6 @@ asyncTest(
                     start();
                     clearTimeout(mt);
                     ok( false, "modulizer-async-init-sync failed");
-                    
                 }
             );
     }

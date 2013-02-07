@@ -27,7 +27,7 @@ var mvcModulizer = function ( module ) {
         return dfd.rejectWith( module );
     };
 
-    $( module )
+    $( module ) // todo: nahern?
         .on(
             "mvc:propUpdated:status",
             function () {

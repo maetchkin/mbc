@@ -105,11 +105,11 @@ var LIB = (
                         dataType: "text"
                     }
                 )
-                .fail(
+                /*.fail(
                     function(){
                         throw "mvc.lib.loadStaticAsync " + src + " failed";
                     }
-                )
+                )*/
                 .promise();
     };
 
