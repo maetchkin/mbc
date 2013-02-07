@@ -142,10 +142,9 @@ asyncTest(
 
             setTimeout(
                 function(){
-                    console.log("start by Timeout");
                     return start();
                 },
-                4/*mvc.obj("mvc-config").prop( "module-timeout-ms" )*/
+                mvc.obj("mvc-config").prop( "module-timeout-ms" )/*4*/
             );
 
 
