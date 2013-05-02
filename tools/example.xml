@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mvc:templates xmlns:mvc="http://market.yandex.ru/mvc#ModelViewController">
+
+<mvc:template/>
+
+<mvc:template name="b-button">
+    <a class="b-button mvc-action-click-fire">
+        <mvc:param>label</mvc:param>
+    </a>
+</mvc:template>
+
+<mvc:template name="deep">
+    <a id="1">
+        text#1 text#1 text#1
+        <b id="2" pid="1">
+            <c id="3" pid="2">
+                <a id="4" pid="3"/>
+            </c>
+        </b>
+        <mvc:text> lll </mvc:text>
+        <f/>
+            ppp
+        <f>
+            <z>
+                text#2 text#2 text#2
+            </z>
+        </f>
+    </a>
+</mvc:template>
+
+</mvc:templates>
